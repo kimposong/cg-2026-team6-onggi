@@ -35,7 +35,7 @@
         if (id === 'water' && onClay) { st.wetT = 1; st.sub = 2; st.sq = 1; st.t = 0; Work.setInventory(['soil', 'water'], false); }   // 반죽 게임에는 재료가 필요 없어 인벤토리를 접는다
         else if (id === 'water') Work.hint(['물이 흙에 스며들도록', '흙 위에 놓아 주세요']);
         else Work.hint(['흙은 이미 올렸어요', '이제 물을 흙 위에 부어 주세요']);
-      }
+      } 
     },
 
     // 리듬 터치 판정 (scene.down 에서 직접 부른다 — workbench.js 버전과 상관없이 동작)
