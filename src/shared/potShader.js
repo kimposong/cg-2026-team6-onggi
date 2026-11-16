@@ -1,5 +1,6 @@
 // src/shared/potShader.js — 옹기·물레를 그리는 Phong 조명 셰이더 (5주차)
 // 4~7단계와 전시실이 모두 쓰므로 한 곳에 둔다. 조명 버그는 여기만 고치면 모든 화면에 반영된다
+// 2026-11-16: 새긴 무늬 텍스처(uDecal, 4단계 꾸미기) 추가 — 흰 곳을 홈처럼 어둡게 + 가장자리 음영 (6주차 텍스처)
 
 const PotShader = (() => {
   const { mat3 } = glMatrix;
@@ -32,6 +33,8 @@ const PotShader = (() => {
   uniform float uRidge;     // 1이면 물레 자국 무늬 (옹기 옆면용), -1이면 물레 나무판 무늬
   uniform float uActiveV;   // 강조할 구간 중심의 높이 비율, 없으면 -1
   uniform float uBandHalf;  // 강조 띠의 절반 두께 (높이 비율)
+  uniform sampler2D uDecal; // 새긴 무늬 (u = 둘레, v = 높이 비율). 흰 곳이 홈
+  uniform float uUseDecal;  // 1이면 무늬를 입힌다
   out vec4 outColor;
 
   void main() {
@@ -53,6 +56,17 @@ const PotShader = (() => {
     if (uRidge < -0.5) base *= 0.82 + 0.18 * step(0.5, fract(vUV.x * 12.0));
 
     vec3 col = base * (0.3 + 0.7 * diff) + vec3(spec);
+
+    // 새긴 무늬: 홈(흰 곳)은 어둡게. 홈의 아래 가장자리는 위에서 오는 빛을 받아 밝고, 위 가장자리는 그늘이 진다 (얕은 홈의 음영을 흉내)
+    if (uUseDecal > 0.5 && gl_FrontFacing) {
+      float cv = texture(uDecal, vUV).r;
+      float below = texture(uDecal, vUV - vec2(0.0, 2.0 / 512.0)).r;
+      float above = texture(uDecal, vUV + vec2(0.0, 2.0 / 512.0)).r;
+      col *= 1.0 - 0.45 * cv;
+      col += vec3(0.22) * max(cv - below, 0.0) * (0.4 + 0.6 * diff);
+      col *= 1.0 - 0.35 * max(cv - above, 0.0);
+    }
+
     if (!gl_FrontFacing) col *= 0.55;     // 안쪽은 어둡게
 
     // 선택한 구간을 따뜻한 띠로 강조
@@ -66,6 +80,15 @@ const PotShader = (() => {
   function create(gl) {
     const { prog, locs } = Program.create(gl, VS, FS);
     const normalMat = mat3.create(); // 루프 안에서 새로 만들지 않도록 재사용
+
+    // 무늬 텍스처는 1번 유닛에 둔다 (0번은 UI 글자 텍스처). 무늬가 없을 때 바인딩할 1×1 검정 텍스처도 하나 만들어 둔다
+    const blank = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, blank);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+    gl.activeTexture(gl.TEXTURE0);
+    gl.useProgram(prog);
+    gl.uniform1i(locs.uDecal, 1);
 
     /** 한 프레임에 한 번: 카메라·조명 설정 */
     function begin(cam, lightDir) {
@@ -81,7 +104,7 @@ const PotShader = (() => {
 
     /**
      * 메시 하나 그리기
-     * @param opt { ridge: 무늬 종류, activeV: 강조 구간 높이 비율(-1 없음), bandHalf: 강조 띠 절반 두께 }
+     * @param opt { ridge: 무늬 종류, activeV: 강조 구간 높이 비율(-1 없음), bandHalf: 강조 띠 절반 두께, decal: 새긴 무늬 텍스처(없으면 null) }
      */
     function draw(gpu, model, color, opt = {}) {
       mat3.normalFromMat4(normalMat, model); // 법선에는 모델 행렬 대신 역전치 행렬 (5주차)
@@ -91,6 +114,9 @@ const PotShader = (() => {
       gl.uniform1f(locs.uRidge, opt.ridge || 0);
       gl.uniform1f(locs.uActiveV, opt.activeV === undefined ? -1 : opt.activeV);
       gl.uniform1f(locs.uBandHalf, opt.bandHalf || 0.1);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, opt.decal || blank);
+      gl.uniform1f(locs.uUseDecal, opt.decal ? 1 : 0);
       gl.bindVertexArray(gpu.vao);
       gl.drawElements(gl.TRIANGLES, gpu.count, gl.UNSIGNED_SHORT, 0);
     }

@@ -165,10 +165,9 @@
     }
     if (id === 'done') {
       if (st.layers < LAYERS) { Work.hint([`타래를 ${LAYERS}단까지 올려야 완성돼요`, `(지금 ${st.layers}/${LAYERS})`]); return; }
-      // 프로토타입: 다음 단계(꾸미기)로 넘길 데이터를 콘솔에 남긴다
+      // 4단계(꾸미기)로 — exit 가 toData() 를 넘긴다
       console.log('[옹기 형태]', JSON.stringify(ctx.pot_main.toData()));
-      st.toastUntil = performance.now() + 1800;
-      // 꾸미기 단계가 완성되면: ctx.go('stage4-decorate', ctx.pot_main.toData());
+      ctx.go('stage4-decorate');
     }
   }
 

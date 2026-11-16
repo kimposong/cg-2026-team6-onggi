@@ -205,8 +205,11 @@ const Work = (() => {
    * top     = 지금 보여 줄 높이 (새 단이 올라올 때 이전 윗면 → 새 윗면으로 부드럽게 자란다)
    * 매번 단면을 다시 계산한다 (121점이라 가볍다). 고리·축을 밀어 반지름·높이가 바뀌면 그 자리에서 벽이 따라 바뀐다 */
   let wall = null, wallMesh = null;
+  let lining = null, liningMesh = null, wallTop = 0;   // 안쪽 면(윗테·안쪽 벽·안바닥) — 벽 두께 (2026-11-16 생김새 피드백)
+  const CLAY_IN = PotShader.CLAY.map((c) => c * Pot.LINING_SHADE);   // 안쪽 면 색 (한 번만 만든다)
   const WM = 60;
   function setWall(ctx, base, radii, heights, top) {
+    wallTop = top;
     const total = heights.reduce((a, b) => a + b, 0);
     const full = Pot.wallProfile(base, radii, heights, 121);
     const pts = [];
@@ -217,6 +220,10 @@ const Work = (() => {
     wallMesh = Mesh.createRevolution(pts, 64, wallMesh || undefined);
     if (!wall) wall = Mesh.uploadMesh(ctx.gl, wallMesh, ctx.potShader.locs, true);
     else Mesh.updateMesh(ctx.gl, wall, wallMesh);
+    // 안쪽 면: 같은 바깥 단면을 Pot.WALL_T 만큼 안으로 넣은 것 (점 수가 일정해서 같은 버퍼를 갱신한다)
+    liningMesh = Mesh.createRevolution(Pot.liningProfile(pts), 64, liningMesh || undefined);
+    if (!lining) lining = Mesh.uploadMesh(ctx.gl, liningMesh, ctx.potShader.locs, true);
+    else Mesh.updateMesh(ctx.gl, lining, liningMesh);
   }
   /** sq: 눌림 효과. hl = { activeV, bandHalf } — 선택한 단을 따뜻한 띠로 강조 (벽 메시의 v = y / top 기준). 없으면 강조 안 함 */
   function drawWall(ctx, sq, hl) {
@@ -224,6 +231,8 @@ const Work = (() => {
     mat4.rotateY(m, m, S.angle);                                   // 바닥판과 같이 물레를 따라 돈다
     mat4.scale(m, m, [1 + 0.04 * sq, 1 - 0.06 * sq, 1 + 0.04 * sq]);
     ctx.potShader.draw(wall, m, PotShader.CLAY, { ridge: 1, activeV: hl ? hl.activeV : -1, bandHalf: hl ? hl.bandHalf : 0.1 });
+    // 벽이 바닥 두께보다 높아진 뒤에만 안쪽 면을 그린다 (그 전에는 윗테가 바닥판과 겹친다)
+    if (wallTop > Pot.FLOOR_T + 0.02) ctx.potShader.draw(lining, m, CLAY_IN, { ridge: 1 });
   }
 
   return {
