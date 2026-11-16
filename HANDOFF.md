@@ -507,7 +507,9 @@ Scenes.register('이름', {
 ---
 
 ## 11. GitHub 현황
-- 사용자가 VS Code 소스 제어의 **Publish to GitHub** 로 **Public 저장소를 만들어 push 완료.** (저장소 이름·주소는 이 문서에 없음 — `git remote -v` 로 확인)
+- 사용자가 VS Code 소스 제어의 **Publish to GitHub** 로 **Public 저장소를 만들어 push 완료.**
+- 저장소 주소 (2026-11-16 확인): `https://github.com/kimposong/cg-2026-team6-onggi.git` — 원래 `cg-2026-team4-onggi` 였다가 이름이 바뀜 (push 때 GitHub 가 이동 안내). 로컬 `origin` 은 아직 옛 주소(GitHub 가 자동으로 새 주소로 넘겨 줌) — VS Code 터미널에서 `git remote set-url origin https://github.com/kimposong/cg-2026-team6-onggi.git` 로 바꿀 것. GitHub Pages 주소도 `…/cg-2026-team6-onggi/` 로 바뀌었을 것이므로 QR·안내물에 쓰기 전 확인.
+- 브랜치: `main`(통합 실행본), `sub`(팀원 작업 브랜치로 추정 — 용도 미확인)
 - GitHub Pages: Settings → Pages → `Deploy from a branch` / `main` / `/ (root)` 로 개설 안내함. 주소 형식 `https://<아이디>.github.io/<저장소이름>/`. 확인은 휴대폰 와이파이 끄고 데이터로.
 - 저장소 이름 변경 시 Pages 주소도 바뀜. 로컬은 `git remote set-url origin <새주소>`.
 - 커스텀 도메인은 사지 않기로 (QR로 접속하므로 불필요, 저장소 이름으로 주소 정리).
