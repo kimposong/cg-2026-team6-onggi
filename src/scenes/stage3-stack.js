@@ -9,7 +9,7 @@
   const LAYERS = Pot.BANDS;                          // 6단 (= 옹기 6구간)
   const BASE_H = 0.06;                               // 바닥판 두께 (2단계가 만든 바닥판과 같다)
 
-  /* ---------- 3단계 전용: 반투명 가이드 셰이더 (고리 원판·높이 축) — 이전 4단계(stage4-shape.js)에서 가져옴 ---------- */
+  /* ---------- 3단계 전용: 반투명 가이드 셰이더 (고리 원판·높이 축) — 삭제된 이전 4단계 stage4-shape.js 에서 가져옴 ---------- */
   const GUIDE_VS = `#version 300 es
   in vec3 aPos;
   in vec2 aUV;
@@ -168,7 +168,7 @@
       // 프로토타입: 다음 단계(꾸미기)로 넘길 데이터를 콘솔에 남긴다
       console.log('[옹기 형태]', JSON.stringify(ctx.pot_main.toData()));
       st.toastUntil = performance.now() + 1800;
-      // 꾸미기 단계가 완성되면: ctx.go('stage5-decorate', ctx.pot_main.toData());
+      // 꾸미기 단계가 완성되면: ctx.go('stage4-decorate', ctx.pot_main.toData());
     }
   }
 
