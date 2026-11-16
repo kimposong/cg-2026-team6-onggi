@@ -10,7 +10,7 @@
   // 4단계 판정: 두 원 반지름 차이(s 의 비율)가 작을수록 높은 등급. 위에서부터 검사한다
   const TIERS = [
     { max: 0.015, txt: 'Excellent!', pts: 20, col: [0.45, 0.95, 0.45] },   // 초록
-    { max: 0.030, txt: 'Great!',     pts: 15, col: [1, 0.92, 0.3] },        // 노랑
+    { max: 0.030, txt: 'Great!',     pts: 15, col: [1, 0.92, 0.3] },        // 노랑 
     { max: 0.055, txt: 'Good',       pts: 8,  col: [1, 0.62, 0.2] },        // 주황
     { max: Infinity, txt: 'Bad',     pts: 2,  col: [1, 0.3, 0.28] },        // 빨강
   ];
