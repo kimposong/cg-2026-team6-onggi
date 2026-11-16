@@ -43,6 +43,9 @@
     move: (x, y, type) => Scenes.call('move', ctx, x, y, type),
     up: (x, y, type) => Scenes.call('up', ctx, x, y, type),
     hover: (x, y) => Scenes.call('hover', ctx, x, y),
+    wheel: (x, y, dy) => Scenes.call('wheel', ctx, x, y, dy),       // 마우스 휠 (화면이 줌으로 쓴다)
+    pinch: (f, cx, cy) => Scenes.call('pinch', ctx, f, cx, cy),     // 두 손가락 벌리기·오므리기 (줌)
+    cancel: () => Scenes.call('cancel', ctx),                        // 두 번째 손가락이 닿아 한 손가락 조작이 끊길 때
   });
 
   /* ---------- 렌더 루프 ---------- */

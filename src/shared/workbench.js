@@ -1,13 +1,36 @@
 // src/shared/workbench.js — 1~3단계 공통 작업대
 // ① 물레는 저절로 돌지 않는다: 마우스 왼쪽 버튼(또는 한 손가락)으로 누른 채 좌우로 흔들 때만 그 방향으로 돈다
 // ② 오른쪽 세로 인벤토리(재료 슬롯) ③ 안내 문구(조작 + 결과) ④ 1~2단계가 함께 쓰는 흙 덩어리 메시
+// ⑤ 3단계(흙 쌓고 빚기)가 쓰는 "쌓이는 옹기 벽" 메시 — 올린 단의 반지름이 바뀌면 바로 다시 계산한다
 
 const Work = (() => {
   const { mat4 } = glMatrix;
   const FOVY = (40 * Math.PI) / 180;
   const cam = Camera.createOrbit();
   // 4단계(stage4-shape.js)와 같은 카메라 값: 각도 12°, 바라보는 높이 0.65(기본 옹기 높이 1.3의 절반), 같은 거리 → 물레·옹기 크기가 단계가 바뀌어도 똑같다
-  const camCfg = { yaw: 0, pitch: (12 * Math.PI) / 180, target: [0, 0.65, 0], dist: 4, fovy: FOVY };
+  const FOCUS_DEFAULT = 0.65;
+  const camCfg = { yaw: 0, pitch: (12 * Math.PI) / 180, target: [0, FOCUS_DEFAULT, 0], dist: 4, fovy: FOVY };
+  /* 줌아웃 배율 (사용자 결정, 2026-11-16): 화면 중심(바라보는 높이)과 기준 거리는 1~3단계 모두 처음 값 그대로.
+   * 3단계에서 옹기가 기본 높이보다 높아지면 그 비율만큼 거리를 늘린다(zoom > 1). 1·2단계는 항상 1.
+   * 화면 중심이 고정일 때 거리를 (꼭대기 높이 − 중심) 비율로 늘리면 꼭대기의 화면 위치가 정확히 그대로 유지된다 (투영식에서 dist ∝ h) */
+  let zoom = 1;
+  function setZoom(z) { zoom = Math.max(1, z); }
+  let distReady = false;            // 처음 한 번은 보간 없이 바로 그 거리에서 시작
+  let autoDist = 4;                 // 기준 거리 × 자동 줌아웃을 부드럽게 따라가는 값 (여기에 사용자 줌을 곱해 실제 거리가 된다)
+
+  /* 사용자 줌·상하 이동 (2026-11-16, 3단계만 켠다 — 1·2단계는 기본값 그대로)
+   * userZoom   : 휠·핀치로 바꾸는 배율 (ZOOM_MIN ~ ZOOM_MAX, 1 = 기준 거리). 자동 줌아웃(zoom)과 곱해진다
+   * panY       : 바라보는 높이의 오프셋(월드 단위). 옹기 밖을 잡고 위아래로 끌면 바뀐다 (확대했을 때 위아래를 보기 위해)
+   * panEnabled : 끌어서 상하 이동을 받을지. targetMin~targetMax = 바라보는 높이가 움직일 수 있는 범위 (화면이 정한다) */
+  const ZOOM_MIN = 0.4, ZOOM_MAX = 1.6;
+  const view = { userZoom: 1, panY: 0, panEnabled: false, targetMin: FOCUS_DEFAULT, targetMax: FOCUS_DEFAULT };
+  function zoomBy(f) { view.userZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, view.userZoom * f)); }
+  /** 화면 픽셀 dy 만큼 끌었을 때 바라보는 높이를 옮긴다 (아래로 끌면 장면이 따라 내려오므로 바라보는 높이는 올라간다) */
+  function panBy(ctx, dy) {
+    const a = Camera.worldToScreen(cam.viewProj, [0, 0, 0], ctx.W, ctx.H), b = Camera.worldToScreen(cam.viewProj, [0, 1, 0], ctx.W, ctx.H);
+    view.panY += dy / Math.max(1, Math.abs(a.y - b.y));          // 세로 1 단위 = 몇 픽셀
+  }
+  function resetView() { view.userZoom = 1; view.panY = 0; view.panEnabled = false; view.targetMin = view.targetMax = FOCUS_DEFAULT; }
   const m = mat4.create();
 
   const ITEMS = {
@@ -22,7 +45,7 @@ const Work = (() => {
     clay: { wet: 0, smooth: 0 },      // 1단계에서 만든 반죽 상태 (2단계가 이어받는다)
   };
   const inv = { items: [], open: 0, target: 1 };   // open: 0(접힘) ~ 1(펼침)
-  const g = { mode: null, x0: 0, y0: 0, lastX: 0, onClay: false, item: null, ix: 0, iy: 0, off: 0 };
+  const g = { mode: null, x0: 0, y0: 0, lastX: 0, lastY: 0, onClay: false, item: null, ix: 0, iy: 0, off: 0 };
   let hintLines = [], hintUntil = 0;
 
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -41,6 +64,13 @@ const Work = (() => {
       id, x, y: y0 + hdr + gap + (i + 0.5) * (sz + gap) * inv.open, h: sz * inv.open,
     }));
     return { x, y0, sz, gap, hdr, slots, pw: sz + gap * 2, body: inv.items.length * (sz + gap) * inv.open };
+  }
+
+  /** (x, y)가 인벤토리 패널 위인지 — 화면이 자기 조작(고리 잡기 등)보다 인벤토리를 먼저 양보할 때 쓴다 */
+  function inInventory(ctx, x, y) {
+    const L = layout(ctx);
+    const ph = L.hdr + (inv.items.length ? L.gap + L.body : 0);
+    return Math.abs(x - L.x) <= L.pw / 2 && y >= L.y0 && y <= L.y0 + ph;
   }
 
   function drawInventory(ctx) {
@@ -84,13 +114,16 @@ const Work = (() => {
         if (Math.abs(x - sl.x) <= L.sz / 2 && Math.abs(y - sl.y) <= L.sz / 2) { g.mode = 'item'; g.item = sl.id; g.ix = x; g.iy = y; return; }
       }
     }
-    g.mode = 'press'; g.x0 = g.lastX = x; g.y0 = y; g.onClay = cb.hitClay(ctx, x, y);
+    g.mode = 'press'; g.x0 = g.lastX = x; g.y0 = g.lastY = y; g.onClay = cb.hitClay(ctx, x, y);
   }
   function move(ctx, x, y) {
     if (g.mode === 'item') { g.ix = x; g.iy = y; return; }
     if (g.mode === 'press' && Math.hypot(x - g.x0, y - g.y0) > ctx.s * 0.02) g.mode = 'rotate';
-    if (g.mode === 'rotate') S.angle += ((x - g.lastX) / ctx.W) * Math.PI * 1.5;   // 오른쪽으로 밀면 앞면이 오른쪽으로 간다
-    g.lastX = x;
+    if (g.mode === 'rotate') {
+      S.angle += ((x - g.lastX) / ctx.W) * Math.PI * 1.5;   // 오른쪽으로 밀면 앞면이 오른쪽으로 간다
+      if (view.panEnabled && !g.onClay) panBy(ctx, y - g.lastY);   // 옹기 밖을 잡았으면 위아래로 끌어 화면을 옮긴다 (확대했을 때 위아래 보기)
+    }
+    g.lastX = x; g.lastY = y;
   }
   function up(ctx, x, y, cb) {
     const mode = g.mode; g.mode = null;
@@ -101,6 +134,8 @@ const Work = (() => {
     } else if (mode === 'press' && g.onClay && cb.onTap) cb.onTap(x, y);
   }
   const holding = () => g.mode === 'press' && g.onClay;     // 2단계: 흙을 누르고 있는 동안
+  /** 두 번째 손가락이 닿아(핀치) 한 손가락 조작이 끊겼을 때: 끌던 재료는 놓지 않고 취소한다 */
+  function cancel() { g.mode = null; g.item = null; }
 
   /* ---------- 화면 위치 판정 ---------- */
   // 반지름 R, 높이 h인 물체가 화면에서 차지하는 사각형(여유 포함) 안에 (x,y)가 있는지
@@ -116,7 +151,15 @@ const Work = (() => {
 
   function update(ctx, dt) {
     inv.open += (inv.target - inv.open) * Math.min(1, dt * 8);
-    camCfg.dist = Camera.fitDistance(ctx.W / ctx.H, FOVY, 2.2, 2.6) * 1.05;   // 4단계와 같은 거리
+    // 기준 거리: 가장 큰 옹기 지름(1.8 + 고리)이 가로로 들어오는 거리 — 4단계와 같은 값. 여기에 줌아웃 배율(3단계만 1보다 큼)을 곱한다
+    const dist = Camera.fitDistance(ctx.W / ctx.H, FOVY, 2.2, 2.6) * 1.05 * zoom;
+    // 거리가 바뀌면 부드럽게 따라간다 (갑자기 튀면 조절 중에 놓치기 쉽다)
+    if (!distReady) { autoDist = dist; distReady = true; }
+    else autoDist += (dist - autoDist) * Math.min(1, dt * 6);
+    // 사용자 줌(휠·핀치)은 바로 반영. 상하 이동은 화면이 정한 범위 안에서만
+    camCfg.dist = autoDist * view.userZoom;
+    view.panY = Math.min(view.targetMax, Math.max(view.targetMin, FOCUS_DEFAULT + view.panY)) - FOCUS_DEFAULT;
+    camCfg.target[1] = FOCUS_DEFAULT + view.panY;
     cam.update(ctx.W / ctx.H, camCfg);
   }
 
@@ -155,29 +198,37 @@ const Work = (() => {
     ctx.potShader.draw(lump, m, col, { ridge: 0.6 });
   }
 
-  /* ---------- 쌓이는 옹기 벽 (3단계): 완성 옹기 단면(Pot.wallProfile)을 높이 top 까지만 보여 준다 ---------- */
-  let wall = null, wallMesh = null, full = null;
+  /* ---------- 쌓이는 옹기 벽 (3단계): 올린 단의 단면(Pot.wallProfile)을 높이 top 까지만 보여 준다 ----------
+   * base    = 바닥 반지름 (단면의 맨 아래 점)
+   * radii   = 지금까지 올린 단의 반지름만 (길이 = 올린 단 수). 아직 안 올린 단은 곡선에 넣지 않는다 → 맨 윗단 가장자리가 엉뚱한 쪽으로 휘지 않는다
+   * heights = 올린 단의 높이 (radii 와 같은 길이 — 단마다 다를 수 있다)
+   * top     = 지금 보여 줄 높이 (새 단이 올라올 때 이전 윗면 → 새 윗면으로 부드럽게 자란다)
+   * 매번 단면을 다시 계산한다 (121점이라 가볍다). 고리·축을 밀어 반지름·높이가 바뀌면 그 자리에서 벽이 따라 바뀐다 */
+  let wall = null, wallMesh = null;
   const WM = 60;
-  function setWall(ctx, data, top) {
-    if (!full) full = Pot.wallProfile(data.radii, data.height, 121);
+  function setWall(ctx, base, radii, heights, top) {
+    const total = heights.reduce((a, b) => a + b, 0);
+    const full = Pot.wallProfile(base, radii, heights, 121);
     const pts = [];
     for (let i = 0; i < WM; i++) {
-      const y = (top * i) / (WM - 1), f = (y / data.height) * 120, k = Math.min(119, Math.floor(f)), t = f - k;
+      const y = (top * i) / (WM - 1), f = Math.min(1, y / total) * 120, k = Math.min(119, Math.floor(f)), t = f - k;
       pts.push({ r: lerp(full[k].r, full[k + 1].r, t), y });
     }
     wallMesh = Mesh.createRevolution(pts, 64, wallMesh || undefined);
     if (!wall) wall = Mesh.uploadMesh(ctx.gl, wallMesh, ctx.potShader.locs, true);
     else Mesh.updateMesh(ctx.gl, wall, wallMesh);
   }
-  function drawWall(ctx, sq) {
+  /** sq: 눌림 효과. hl = { activeV, bandHalf } — 선택한 단을 따뜻한 띠로 강조 (벽 메시의 v = y / top 기준). 없으면 강조 안 함 */
+  function drawWall(ctx, sq, hl) {
     mat4.fromTranslation(m, [0, 0.003, 0]);
+    mat4.rotateY(m, m, S.angle);                                   // 바닥판과 같이 물레를 따라 돈다
     mat4.scale(m, m, [1 + 0.04 * sq, 1 - 0.06 * sq, 1 + 0.04 * sq]);
-    ctx.potShader.draw(wall, m, PotShader.CLAY, { ridge: 1, activeV: -1, bandHalf: 0.1 });
+    ctx.potShader.draw(wall, m, PotShader.CLAY, { ridge: 1, activeV: hl ? hl.activeV : -1, bandHalf: hl ? hl.bandHalf : 0.1 });
   }
 
   return {
-    S, cam, easeBack, setInventory, hint, drawInventory, drawGuide, down, move, up, holding,
-    hitClay, update, drawScene, setLump, drawLump, setWall, drawWall,
+    S, cam, FOCUS_DEFAULT, setZoom, view, zoomBy, panBy, resetView, easeBack, setInventory, hint, drawInventory, drawGuide,
+    down, move, up, cancel, holding, hitClay, inInventory, update, drawScene, setLump, drawLump, setWall, drawWall,
     get inv() { return inv; },
   };
 })();
