@@ -3,6 +3,7 @@
 // 조작: 옹기 위를 끌면 조각칼로 새긴다 (옹기 위에서 시작한 획은 손을 뗄 때까지 "새기기"로 유지 — 중간에 옹기 밖으로 나가도 물레가 돌지 않는다)
 //       빈 곳을 좌우로 끌면 물레가 돈다 (3단계 메커니즘). 「물레」 버튼을 켜면 천천히 계속 돌아 띠 무늬를 새기기 쉽다
 //       오른쪽 버튼: 조각칼(새기기) / 손가락(지우기) / 물레(켜기·끄기). 아래 슬라이더: 굵기. 마우스 커서는 조각칼 모양이고 칼끝 = 포인터
+//       (2026-11-19) 손가락(지우기) 버튼은 화면에서 숨김 — SHOW_FINGER 참고. 지우기 기능 코드는 남겨 둔다
 // 원리: 터치 → 광선(7주차) → 옹기 표면 교차(회전체: 축까지 거리 − 그 높이의 반지름 = 0) → UV(u = 둘레, v = 높이 비율)
 //       → 2D 캔버스에 선 긋기 → 텍스처로 올리기(6주차) → potShader 가 흰 곳을 홈처럼 어둡게 그린다 (uDecal)
 
@@ -12,6 +13,7 @@
   const SIZE_MIN = 3, SIZE_MAX = 40;      // 붓 굵기 범위 (텍스처 픽셀)
   const SPIN_SPEED = 0.45;                // 「물레」 켰을 때 자동 회전 속도 (라디안/초, 한 바퀴 약 14초)
   const Y_MARGIN = 0.16;                  // 줌 계산용 꼭대기 여유 — 3단계 손잡이 높이와 같게 해서 화면이 이어진다
+  const SHOW_FINGER = false;              // (2026-11-19) 피그마 플로우에서 지우기 도구는 빼는 방향 → 버튼만 숨긴다. 기능(st.tool = 'finger')은 그대로 — 다시 쓰려면 true
 
   const st = {
     tool: 'knife',                        // 'knife' 새기기 | 'finger' 지우기
@@ -130,10 +132,11 @@
     const { W, H, s } = ctx;
     const sz = s * 0.14, gap = s * 0.02, x = W - sz / 2 - gap * 2, y0 = H * 0.2 + sz / 2;
     st.tools = [
-      { id: 'knife', icon: '🔪', name: '새기기', x, y: y0, w: sz, h: sz },
-      { id: 'finger', icon: '👆', name: '지우기', x, y: y0 + (sz + gap), w: sz, h: sz },
-      { id: 'spin', icon: '🔄', name: '물레', x, y: y0 + 2 * (sz + gap), w: sz, h: sz },
-    ];
+      { id: 'knife', icon: '🔪', name: '새기기' },
+      { id: 'finger', icon: '👆', name: '지우기', hidden: !SHOW_FINGER },
+      { id: 'spin', icon: '🔄', name: '물레' },
+    ].filter(b => !b.hidden)                                            // 숨긴 버튼은 그리지도, 판정하지도 않는다
+     .map((b, i) => ({ ...b, x, y: y0 + i * (sz + gap), w: sz, h: sz })); // 보이는 버튼만 위에서부터 빈칸 없이 쌓는다
     st.buttons = ctx.ui.layoutBottomPair(W, H, { id: 'clear', label: '다 지우기' }, { id: 'done', label: '완료', primary: true });
     const top = st.buttons[0].y - st.buttons[0].h / 2;                  // 버튼 윗변
     st.slider = { x0: W * 0.2, x1: W * 0.8, y: top - s * 0.07, h: s * 0.014 };
