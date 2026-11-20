@@ -118,6 +118,10 @@ const Pot = (() => {
     const floorGpu = Mesh.uploadMesh(gl, floorMesh, locs, true);
     let dirty = false;
     const liningCol = [0, 0, 0];         // 안쪽 면 색 (매 프레임 새 배열을 만들지 않도록 재사용)
+    // (2026-11-20) 유약(잿물) 상태 — 5단계가 바꾸고, 이후 단계·전시실이 그대로 쓴다 (decal 과 같은 방식)
+    //   hex: 고른 색 코드(null = 안 바름) / color: 셰이더용 0~1 RGB / level: 바른 높이 비율 0~1 / under: 다시 바르는 동안 남아 있는 이전 색 (없으면 null)
+    const glaze = { hex: null, color: [0, 0, 0], level: 0, under: null };
+    const glazeOpt = { color: glaze.color, top: 0, under: null };   // 셰이더에 넘기는 값 (재사용)
 
     // 물레 윗판과 겹쳐 깜빡이지 않게 살짝 띄운다. 화면이 회전을 더하고 싶으면 이 행렬을 직접 고친다 (4단계: 물레 각도)
     const model = mat4.fromTranslation(mat4.create(), [0, 0.003, 0]);
@@ -126,6 +130,7 @@ const Pot = (() => {
       shape,
       model,
       decal: null,          // 새긴 무늬 텍스처 (WebGLTexture). 4단계가 만들어 넣고, 이후 단계·전시실이 그대로 쓴다
+      glaze,                // (2026-11-20) 유약 상태 { hex, color, level, under } — 5단계가 바꾼다
 
       /** i번 단 중심의 높이 (월드 단위) */
       bandY(i) { return sum(shape.heights.slice(0, i)) + shape.heights[i] / 2; },
@@ -162,6 +167,7 @@ const Pot = (() => {
         shape.base = DEFAULT_BASE;
         shape.radii = DEFAULT_RADII.slice();
         shape.heights = DEFAULT_HEIGHTS.slice();
+        glaze.hex = null; glaze.level = 0; glaze.under = null;   // (2026-11-20) 새 옹기는 유약 없이
         dirty = true;
       },
 
@@ -193,13 +199,20 @@ const Pot = (() => {
         const activeV = band !== undefined && band >= 0 ? this.bandY(band) / H : -1;
         const bandHalf = band !== undefined && band >= 0 ? shape.heights[band] / 2 / H : 0.5 / BANDS;
         for (let i = 0; i < 3; i++) liningCol[i] = color[i] * LINING_SHADE;
-        potShader.draw(floorGpu, model, color);
-        potShader.draw(wallGpu, model, color, { ridge: 1, activeV, bandHalf, decal: this.decal });
-        potShader.draw(liningGpu, model, liningCol, { ridge: 1 });
+        // (2026-11-20) 유약: 바른 높이 비율 → 월드 높이 (모델이 0.003 떠 있으므로 더한다). 다 차면 위 끝 너머까지 덮는다
+        const gz = glaze.hex || glaze.under ? glazeOpt : null;
+        if (gz) {
+          glazeOpt.top = glaze.hex ? (glaze.level >= 1 ? H + 1 : glaze.level * (H + 0.05)) + 0.003 : 0;
+          glazeOpt.under = glaze.under;
+        }
+        potShader.draw(floorGpu, model, color, { glaze: gz });
+        potShader.draw(wallGpu, model, color, { ridge: 1, activeV, bandHalf, decal: this.decal, glaze: gz });
+        potShader.draw(liningGpu, model, liningCol, { ridge: 1, glaze: gz });
       },
 
       /** 다음 단계로 넘길 데이터 — 화면 간 약속 형식. height 는 참고용(단 높이의 합) */
-      toData() { return { base: shape.base, radii: shape.radii.slice(), heights: shape.heights.slice(), height: shape.height }; },
+      // (2026-11-20) glaze = 고른 유약 색 코드 (안 발랐으면 null) — 결과 카드·전시실용. load 는 이 값을 쓰지 않는다
+      toData() { return { base: shape.base, radii: shape.radii.slice(), heights: shape.heights.slice(), height: shape.height, glaze: glaze.hex }; },
     };
   }
 

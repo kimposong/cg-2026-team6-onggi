@@ -179,8 +179,9 @@
     if (id === 'done') {
       // 프로토타입: 다음 단계(완성하기)로 넘길 데이터를 콘솔에 남긴다. 무늬는 pot_main.decal 텍스처에 남아 있다
       console.log('[옹기 형태]', JSON.stringify(ctx.pot_main.toData()));
-      st.toastUntil = performance.now() + 1800;
       // 완성하기 화면이 생기면: ctx.go('stage5-glaze', ctx.pot_main.toData());
+      // (2026-11-20) 5단계 화면이 생겨 연결 — exit 가 toData() 를 넘기고, 무늬 텍스처는 pot_main.decal 로 그대로 따라간다
+      ctx.go('stage5-glaze');
     }
   }
 
