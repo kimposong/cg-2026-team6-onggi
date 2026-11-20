@@ -14,6 +14,7 @@
 - 2026-11-16 (Claude Code, 정리): 카메라 규칙 확정(중심 고정 + 높이에 따른 줌아웃), 휠·핀치 줌과 옹기 밖 세로 드래그 상하 이동 추가. **`stage4-shape.js` 삭제, `stage5~7` → `stage4~6` 재정렬** (파일·화면 이름·제목·`index.html`). 1차 커밋 `f83947e`.
 - 2026-11-19 (Claude Code, 병합): **`sub` 브랜치를 `main` 에 병합** (팀원 JAEWON LEE 작업). 1단계 반죽이 8번 터치 → **리듬 게임**(점수 100점이면 2단계)으로 바뀜. 1안 `stage1-knead.js`(원 크기 맞추기), 2안 `stage1-knead-bar.js`(게이지 바). 두 파일이 같은 장면 이름을 써서 `index.html` 은 1안만 불러온다. 어느 안을 쓸지는 13장.
 - 2026-11-19 (Claude Code, 피그마 플로우): **팀 피그마 화면 설계로 체험 구조가 7단계로 확정** (6-0). 흙 준비 → 반죽 미니게임 → 옹기 빚기 → 문양 그리기 → 잿물 입히기 → 가마에 굽기 → 옹기 카드 저장. 전시관은 시간이 남으면 추가(보류), 시작 화면은 메인 플레이 완성 후 제작, 유물 문양 도장은 만들지 않음. 13장 정리. 코드는 크게 바꾸지 않기로 함 (사용자 결정): 5단계 `stage5-glaze` 는 유약 색 선택만, **6단계 `stage6-gama.js`(가마 굽기) 빈 틀 추가, `stage6-result.js` → `stage7-result.js`**, 4단계 지우기 버튼은 숨김(기능은 유지). 배경·버튼 일러스트는 팀이 제작 중 — 완성되면 `assets/` 에 넣고 적용 (그 전까지 화면 모양은 그대로).
+- 2026-11-20 (Claude Code, 에셋): 팀이 `assets/` 에 올린 그림 34개를 영어 이름으로 바꾸고 폴더로 분류 (8-1-1, `icons/`·`patterns/` 삭제). 4단계 커서는 대나무 도구로 바꾸기로 함. 용량(약 20MB) 줄이기는 나중에. 코드 적용은 아직.
 - 2026-11-16 (Claude Code, 2차 수정): 사용자 수정 요청 3가지 — ① 단마다 높이 축(위아래) ② 바닥 반지름 조절부터 시작 ③ 가이드는 단이 끝나면 껐다가 새 단에서 켜기. 이를 위해 **옹기 데이터 형식이 `{ base, radii[6], heights[6] }` 로 바뀜** (`pot.js`, 7-3). 이전 단은 다음 타래를 올리면 굳는다(재조절 불가).
 
 ---
@@ -367,9 +368,14 @@
 ```
 onggi/
 ├─ index.html                 # <canvas> 하나 + script 순서대로 로드
-├─ assets/
-│  ├─ icons/   .gitkeep       # 재료 슬롯(흙·물·유약·장작), 손 커서 이미지 예정
-│  ├─ patterns/ .gitkeep      # 5단계 문양 예정
+├─ assets/                    # 2026-11-20 팀 그림 추가·분류 (8-1-1)
+│  ├─ backgrounds/            # 전체 배경
+│  ├─ ui/
+│  │  ├─ banners/             # 단계별 제목 배너 1~7
+│  │  ├─ buttons/             # 글자 버튼
+│  │  └─ slots/               # 재료 슬롯 칸 (흙·물·유약·장작)
+│  ├─ items/                  # 끌고 다니는 재료 그림
+│  ├─ stages/stage2·4·5·6/    # 한 화면 전용 그림 (게이지, 슬라이더·커서, 유약 색, 가마·불)
 │  └─ textures/ .gitkeep      # 흙·나무 질감 예정
 ├─ docs/ .gitkeep             # flow.md, interfaces.md 등 예정
 └─ src/
@@ -402,6 +408,26 @@ onggi/
    └─ main.js                 # 공용 도구(ctx) 생성, 렌더 루프, 입력을 현재 화면으로 전달
 ```
 빈 틀 파일은 Scenes 약속만 갖추고 화면 가운데에 "단계 이름 + 준비 중"만 그린다.
+
+### 8-1-1. `assets/` 이미지 (2026-11-20 팀이 추가, Claude Code가 영어 이름으로 바꾸고 폴더로 분류 — 코드에는 아직 적용 안 함)
+| 경로 (`assets/` 아래) | 원래 이름 | 내용 |
+|---|---|---|
+| `backgrounds/background.png` | 전체 배경 | 한옥 작업장 배경 (2254×4005, 세로) |
+| `ui/banners/banner-stage1.png` ~ `banner-stage7.png` | N단계_설명 | 화면 위 제목 배너 (글자 포함, 1738×580) |
+| `ui/buttons/btn-next.png` / `btn-undo.png` / `btn-done-drawing.png` / `btn-to-kiln.png` | 버튼_다음으로 / 되돌리기 / 다 그렸어요 / 가마로 가기 | 글자 버튼 (771×257) |
+| `ui/buttons/btn-add-firewood.png` / `btn-capture.png` / `btn-save-image.png` | 버튼_장작 넣기 / 촬영하기 / 이미지 저장 | 글자 버튼 (1018×340) |
+| `ui/slots/slot-clay.png` / `slot-water.png` / `slot-glaze.png` / `slot-firewood.png` | 재료 슬롯_흙 / 물 / 유약 / 장작 | 아래 재료 슬롯 칸 (아이콘 포함, 457×457) |
+| `items/item-clay.png` / `item-water.png` / `item-glaze-bowl.png` / `item-firewood.png` | 흙 덩어리 / 물 / 유약 / 장작 | 끌고 다니는 재료 그림 (슬롯 테두리 없음) |
+| `stages/stage2/stage2-gauge.png` / `stage2-gauge-cursor.png` | 2단계_게이지 / 게이지 커서 | 반죽 게이지 바(주황·노랑·초록 칸) / 위의 ▼ 표시 |
+| `stages/stage4/stage4-slider-track.png` / `stage4-slider-knob.png` | 4단계_그림 슬라이더 / 슬라이더 버튼 | 굵기 슬라이더 트랙 / 손잡이 |
+| `stages/stage4/stage4-cursor-bamboo-tool.png` | 4단계_대나무 도구 커서 | 4단계 커서 (1254×1254). **조각칼 대신 이 대나무 도구로 바꾼다** (2026-11-20 사용자 결정, 적용은 아직) |
+| `stages/stage4/stage4-btn-spin.png` | 4단계_물레 돌리기 | 물레 돌리기 버튼 (🔄) |
+| `stages/stage5/stage5-glaze-yellowbrown.png` / `-chestnut.png` / `-darkbrown.png` | 5단계_유약1 / 2 / 3 | 잿물 색 원 — 황갈색 / 밤갈색 / 흑갈색 (6-0) |
+| `stages/stage6/stage6-kiln.png` / `stage6-fire.png` | 6단계_가마 / 불 | 가마 / 불길 |
+
+- 폴더 규칙: 여러 화면이 쓰는 그림은 종류별(`backgrounds/`, `ui/banners·buttons·slots/`, `items/`), 한 화면만 쓰는 그림은 `stages/stageN/`. 기존 `icons/`(→ `ui/slots`·`items`)·`patterns/`(문양 도장 안 만듦)는 삭제, `textures/`(흙·나무 질감 예정)는 유지.
+- 이름 규칙: 소문자 + 하이픈. 폴더를 옮겨도 알아보게 파일 이름에도 종류 접두사(`banner-`, `btn-`, `slot-`, `item-`, `stageN-`)를 남긴다.
+- **용량 주의:** 34개 합계 약 20MB → 수업 기준 "전체 15MB 이하" 초과. 큰 것은 `background.png`(약 7.6MB), 배너 7개(각 약 1MB), 가마(1.2MB). 줄이는 건 나중에 (2026-11-20 사용자 결정) — 휴대폰 기준 배경 세로 2000px 이하, JPG/WebP 변환 후보.
 
 ### 8-2. 로딩 방식 (중요)
 - **`type="module"` 을 쓰지 않는다.** 일반 `<script>` 로 순서대로 로드 → Live Server로도, 파일 직접 열기로도 동작.
@@ -608,6 +634,7 @@ Scenes.register('이름', {
 - [ ] (2026-11-16) 줌인을 화면 가운데가 아니라 커서·손가락 위치 쪽으로 할지 (지금은 가운데 기준 + 상하 이동으로 보완)
 - [ ] 시작 화면의 견본 고르기(기획안 버전)를 7단계 구조에 다시 넣을지
 - [ ] 7단계 카드 형식 (이미지 저장? 박물관 유물·전시실 위치 포함?)
-- [ ] 손 커서를 이모지에서 팀 제작 이미지로 바꿀지
+- [ ] 손 커서를 이모지에서 팀 제작 이미지로 바꿀지 (4단계 커서는 2026-11-20 대나무 도구 그림으로 결정 — 3단계 손 커서 그림은 아직 없음)
+- [ ] (2026-11-20) 에셋 용량 줄이기 (합계 약 20MB > 15MB 기준) — 나중에
 - [ ] 현재 Public 저장소 = 팀 저장소로 쓸지, 별도 팀 저장소와 합칠지
 - [ ] `main` 브랜치 보호 규칙 적용 여부
