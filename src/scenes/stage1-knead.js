@@ -26,16 +26,18 @@
     // 리듬 반죽 중에는 터치 위치와 상관없이 화면 어디를 눌러도 되도록 onPress 로 처리한다 (아이들이 정확히 누르기 어렵다)
     hitClay: (ctx, x, y) => st.sub >= 1 && Work.hitClay(ctx, x, y, R, H),
 
+    // (2026-11-20) 작업대 규칙: 받은 재료면 true, 아니면 슬롯으로 튕겨 돌아간다 (지금 index.html 은 2안을 불러오므로 이 파일은 쓰이지 않는다)
     onDrop(id, x, y) {
       const ctx = cb.ctx, onClay = cb.hitClay(ctx, x, y);
       if (st.sub === 0) {
-        if (id === 'soil') { st.sub = 1; st.appear = 0; st.sq = 1; }                 // 흙은 화면 안 어디에 놓아도 물레에 올라간다
+        if (id === 'soil') { st.sub = 1; st.appear = 0; st.sq = 1; return true; }   // 흙은 화면 안 어디에 놓아도 물레에 올라간다
         else Work.hint(['물은 흙을 올린 다음에 써요', '먼저 흙을 물레 위에 놓아 주세요']);
       } else if (st.sub === 1) {
-        if (id === 'water' && onClay) { st.wetT = 1; st.sub = 2; st.sq = 1; st.t = 0; Work.setInventory(['soil', 'water'], false); }   // 반죽 게임에는 재료가 필요 없어 인벤토리를 접는다
+        if (id === 'water' && onClay) { st.wetT = 1; st.sub = 2; st.sq = 1; st.t = 0; Work.setInventory(['soil', 'water'], false); return true; }   // 반죽 게임에는 재료가 필요 없어 인벤토리를 접는다
         else if (id === 'water') Work.hint(['물이 흙에 스며들도록', '흙 위에 놓아 주세요']);
         else Work.hint(['흙은 이미 올렸어요', '이제 물을 흙 위에 부어 주세요']);
       }
+      return false;
     },
 
     // 리듬 터치 판정 (scene.down 에서 직접 부른다 — workbench.js 버전과 상관없이 동작)

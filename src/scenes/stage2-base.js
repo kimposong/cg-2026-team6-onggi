@@ -11,13 +11,14 @@
 
   const cb = {
     hitClay: (ctx, x, y) => Work.hitClay(ctx, x, y, R0 + (R1 - R0) * ease(st.f), H0 + (H1 - H0) * ease(st.f)),
-    onDrop() { Work.hint(['이 단계는 재료를 쓰지 않아요', '반죽 덩어리를 직접 꾹 눌러 주세요']); },
+    // (2026-11-20) 어떤 재료든 받지 않는다(false) → 안내 문구 + 슬롯으로 튕겨 돌아감
+    onDrop() { Work.hint(['이 단계는 재료를 쓰지 않아요', '반죽 덩어리를 직접 꾹 눌러 주세요']); return false; },
   };
 
   Scenes.register('stage2-base', {
     enter(ctx) {
       Object.assign(st, { f: 0, sq: 0, doneAt: 0, left: false });
-      Work.setInventory(['soil', 'water'], false);       // 2단계: 인벤토리를 위로 접는다
+      Work.setInventory(Work.ALL_ITEMS, true);          // 2단계: 인벤토리를 위로 접는다 → (2026-11-20 피그마) 슬롯 바 4칸을 그대로 보여 준다
     },
 
     update(ctx, dt) {
@@ -39,9 +40,9 @@
 
     drawUI(ctx) {
       const done = st.doneAt > 0;
-      Work.drawGuide(ctx, '② 바닥 만들기',
-        done ? ['✓ 바닥판 완성!', '이제 타래를 쌓아 옹기 벽을 만들어요'] : ['반죽 덩어리를 꾹 누르고 있어 보세요', `누르는 만큼 납작하게 눌려요 (${Math.round(st.f * 100)}%)`],
-        done ? '' : '완성되면 옹기의 밑바닥이 될 둥글고 납작한 바닥판이 돼요');
+      // (2026-11-20 피그마) 제목·안내 글자 → 배너 3 「옹기 빚기」 (피그마에서는 바닥 만들기와 쌓기가 한 단계) + 아래 한 줄
+      // 원래 안내: '② 바닥 만들기' / 반죽 덩어리를 꾹 누르고 있어 보세요 / 누르는 만큼 납작하게 눌려요 / 완성되면 옹기의 밑바닥이 될 둥글고 납작한 바닥판이 돼요
+      Work.drawBanner(ctx, 3, done ? '✓ 바닥판 완성!' : `흙을 꾹 누르고 있으면 바닥판이 돼요 (${Math.round(st.f * 100)}%)`);
       Work.drawInventory(ctx);
     },
 

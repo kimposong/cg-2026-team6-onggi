@@ -14,6 +14,22 @@
   const SPIN_SPEED = 0.45;                // 「물레」 켰을 때 자동 회전 속도 (라디안/초, 한 바퀴 약 14초)
   const Y_MARGIN = 0.16;                  // 줌 계산용 꼭대기 여유 — 3단계 손잡이 높이와 같게 해서 화면이 이어진다
   const SHOW_FINGER = false;              // (2026-11-19) 피그마 플로우에서 지우기 도구는 빼는 방향 → 버튼만 숨긴다. 기능(st.tool = 'finger')은 그대로 — 다시 쓰려면 true
+  const SHOW_KNIFE = false;               // (2026-11-20) 피그마에는 새기기 버튼이 없다 (도구가 하나뿐이라 고를 필요 없음) → 숨김. 도구는 항상 'knife'
+  // (2026-11-20) 피그마 그림 — 슬라이더(트랙·손잡이), 물레 버튼, 아래 버튼
+  const IMG = {
+    track: './assets/stages/stage4/stage4-slider-track.png',
+    knob:  './assets/stages/stage4/stage4-slider-knob.png',
+    spin:  './assets/stages/stage4/stage4-btn-spin.png',
+  };
+  const TRACK_IN = 0.08;                  // 트랙 그림의 좌우 테두리 비율 — 손잡이 중심은 그림 폭의 8% ~ 92% 사이를 움직인다
+  // (2026-11-20 비율 조정) 피그마 Frame 12 에서 잰 값. 가로·크기 = 프레임 폭 u 비율, 세로 = 화면 높이 비율.
+  // 그림에는 투명 여백이 있어 "보이는 크기"에 맞게 그림 크기를 키워 둔다 (트랙 보이는 폭 97.9%, 손잡이 84%, 물레 버튼 92%)
+  const FIG = {
+    rowY: 0.706,                          // 슬라이더·물레 버튼 줄의 중심 높이
+    trackX: 0.104, trackImg: 0.479,       // 트랙: 보이는 왼쪽 끝 0.104u, 보이는 폭 0.469u
+    knobImg: 0.129,                       // 손잡이: 보이는 지름 0.108u
+    spinX: 0.819, spinImg: 0.113,         // 물레 버튼: 중심 0.819u, 보이는 지름 0.104u
+  };
 
   const st = {
     tool: 'knife',                        // 'knife' 새기기 | 'finger' 지우기
@@ -33,6 +49,8 @@
   let decal = null;                       // { canvas, c2d, tex } — 처음 한 번 만들고 재사용
   const invVP = mat4.create(), tmp4 = vec4.create();
   const cb = { hitClay: () => false, onDrop() {} };   // 작업대 콜백: 재료 없음. 옹기 판정은 광선으로 따로 한다 (빈 곳 → 회전·상하 이동)
+  // (2026-11-20 피그마) 슬롯 바는 보이지만 꾸미기에서는 재료를 받지 않는다 → 안내 문구 + 슬롯으로 튕겨 돌아감
+  cb.onDrop = () => { Work.hint(['꾸미기에서는 재료를 쓰지 않아요', '옹기 위를 끌어 무늬를 그려 보세요']); return false; };
 
   /* ---------- 무늬 캔버스·텍스처 ---------- */
   function initDecal(gl) {
@@ -127,19 +145,29 @@
     st.ptr.x = x; st.ptr.y = type === 'mouse' ? y : y - ctx.s * 0.08; st.ptr.type = type;
   }
 
-  /* ---------- UI 배치: 오른쪽 도구 버튼 3개, 아래 굵기 슬라이더, 맨 아래 버튼 2개 ---------- */
+  /* ---------- UI 배치: 오른쪽 도구 버튼 3개, 아래 굵기 슬라이더, 맨 아래 버튼 2개 ----------
+   * (2026-11-20 피그마) 맨 아래 그림 버튼 「되돌리기」(= 원래 「다 지우기」, 다시 민무늬로)·「다 그렸어요!」(= 원래 「완료」),
+   * 그 위 슬롯 바 4칸(작업대), 그 위 한 줄에 굵기 슬라이더(트랙·손잡이 그림) + 오른쪽 물레 버튼(그림).
+   * 새기기·지우기 버튼은 숨김 (SHOW_KNIFE·SHOW_FINGER) — 숨기지 않으면 원래처럼 오른쪽 세로로 쌓인다 */
   function layoutUI(ctx) {
     const { W, H, s } = ctx;
     const sz = s * 0.14, gap = s * 0.02, x = W - sz / 2 - gap * 2, y0 = H * 0.2 + sz / 2;
     st.tools = [
-      { id: 'knife', icon: '🔪', name: '새기기' },
+      { id: 'knife', icon: '🔪', name: '새기기', hidden: !SHOW_KNIFE },
       { id: 'finger', icon: '👆', name: '지우기', hidden: !SHOW_FINGER },
-      { id: 'spin', icon: '🔄', name: '물레' },
     ].filter(b => !b.hidden)                                            // 숨긴 버튼은 그리지도, 판정하지도 않는다
      .map((b, i) => ({ ...b, x, y: y0 + i * (sz + gap), w: sz, h: sz })); // 보이는 버튼만 위에서부터 빈칸 없이 쌓는다
-    st.buttons = ctx.ui.layoutBottomPair(W, H, { id: 'clear', label: '다 지우기' }, { id: 'done', label: '완료', primary: true });
-    const top = st.buttons[0].y - st.buttons[0].h / 2;                  // 버튼 윗변
-    st.slider = { x0: W * 0.2, x1: W * 0.8, y: top - s * 0.07, h: s * 0.014 };
+    st.buttons = Work.buttonRow(ctx, [
+      { id: 'clear', img: './assets/ui/buttons/btn-undo.png', label: '되돌리기' },
+      { id: 'done', img: './assets/ui/buttons/btn-done-drawing.png', label: '다 그렸어요!' },
+    ]);
+    // 슬라이더 줄: 슬롯 바(펼친 위치) 바로 위. 트랙 폭 + 간격 + 물레 버튼을 한 덩어리로 가운데 정렬
+    // (2026-11-20 비율 조정) 피그마 9:16 프레임에서 잰 값 — 프레임 왼쪽 끝(fx)·폭 u 기준 가로, 화면 높이 H 기준 세로 (FIG 참고)
+    const L = Work.bottomLayout(ctx), u = L.u, fx = W / 2 - u / 2, y = H * FIG.rowY;
+    const tw = u * FIG.trackImg, imgX = fx + u * FIG.trackX - tw * 0.007;   // 트랙 그림은 왼쪽 0.7% 가 투명
+    const spinD = u * FIG.spinImg;
+    st.slider = { x0: imgX + tw * TRACK_IN, x1: imgX + tw * (1 - TRACK_IN), y, h: s * 0.014, imgX, imgW: tw, knob: u * FIG.knobImg };
+    st.tools.push({ id: 'spin', icon: '🔄', name: '물레', x: fx + u * FIG.spinX, y, w: spinD, h: spinD, img: IMG.spin });
   }
   const sliderHit = (ctx, x, y) => st.slider && Math.abs(y - st.slider.y) < ctx.s * 0.05 && x > st.slider.x0 - ctx.s * 0.04 && x < st.slider.x1 + ctx.s * 0.04;
   function sliderSet(x) { st.size = Math.min(1, Math.max(0, (x - st.slider.x0) / (st.slider.x1 - st.slider.x0))); }
@@ -185,7 +213,7 @@
       if (!decal) initDecal(ctx.gl);
       pot.decal = decal.tex;                           // 이후 단계·전시실도 이 텍스처를 그대로 쓴다
       Object.assign(st, { tool: 'knife', spin: false, stroke: null, sliderDrag: false, toastUntil: 0, cursorVisible: false });
-      Work.setInventory([], false);                    // 재료 없음 (인벤토리는 그리지 않는다)
+      Work.setInventory(Work.ALL_ITEMS, true);         // 재료 없음 (인벤토리는 그리지 않는다) → (2026-11-20 피그마) 슬롯 바 4칸은 보이되 재료는 받지 않는다
       Work.resetView();
       Work.view.panEnabled = true;                     // 옹기 밖을 위아래로 끌면 화면 이동 (3단계와 같음)
       ctx.gl.canvas.style.cursor = 'none';             // 시스템 커서 대신 조각칼을 그린다 (캔버스 안 UI 규칙 유지)
@@ -221,27 +249,43 @@
 
     drawUI(ctx) {
       const { W, H, s, ui } = ctx;
-      Work.drawGuide(ctx, '④ 꾸미기',
-        ['옹기 위를 끌어 조각칼로 무늬를 새겨요', '빈 곳을 좌우로 끌면 물레가 돌아요'],
-        '물레 버튼을 켜면 천천히 돌아서 띠 무늬를 새기기 쉬워요');
+      // (2026-11-20 피그마) 제목·안내 글자 → 배너 4 「문양 그리기」
+      // 원래 안내: '④ 꾸미기' / 옹기 위를 끌어 조각칼로 무늬를 새겨요 / 빈 곳을 좌우로 끌면 물레가 돌아요 / 물레 버튼을 켜면 천천히 돌아서 띠 무늬를 새기기 쉬워요
+      Work.drawBanner(ctx, 4, '');
 
-      // 오른쪽 도구 버튼
+      // 오른쪽 도구 버튼 (2026-11-20: 물레 버튼은 그림 — 켜지면 뒤에 주황 원을 깐다)
       for (const b of st.tools) {
         const on = b.id === 'spin' ? st.spin : st.tool === b.id;
+        const t = b.img ? ImageTex.get(ctx.gl, b.img) : null;
+        if (t && t.ready) {
+          if (on) ui.circle(b.x, b.y, b.w * 1.18, [1, 0.62, 0.25, 0.9]);
+          ui.drawImage(t, b.x - b.w / 2, b.y - b.h / 2, b.w, b.h);
+          continue;
+        }
         ui.rect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, on ? [0.72, 0.42, 0.24, 0.95] : [1, 1, 1, 0.14], b.h * 0.2);
         ui.drawText(ui.text(b.icon), b.x, b.y - b.h * 0.12, b.h * 0.42);
         ui.drawText(ui.text(b.name), b.x, b.y + b.h * 0.32, b.h * 0.2, 'center', b.w * 0.9);
       }
 
       // 굵기 슬라이더 (그림판 붓 크기처럼): 트랙 + 채워진 부분 + 손잡이, 왼쪽에 「굵기」
+      // (2026-11-20) 그림이 있으면 트랙·손잡이 그림으로 (피그마에는 「굵기」 글자 없음). 그림 전에는 원래 모양
       const sl = st.slider, kx = sl.x0 + (sl.x1 - sl.x0) * st.size;
-      ui.drawText(ui.text('굵기'), sl.x0 - s * 0.03, sl.y, s * 0.035, 'right', Infinity, [1, 0.92, 0.85, 0.85]);
-      ui.rect(sl.x0, sl.y - sl.h / 2, sl.x1 - sl.x0, sl.h, [1, 1, 1, 0.25], sl.h / 2);
-      ui.rect(sl.x0, sl.y - sl.h / 2, kx - sl.x0, sl.h, [1, 0.75, 0.42, 0.9], sl.h / 2);
-      ui.circle(kx, sl.y, s * 0.06, [1, 1, 1, 0.95]);
-      ui.circle(kx, sl.y, Math.max(s * 0.008, s * 0.05 * st.size), [0.3, 0.2, 0.12, 1]);   // 손잡이 안에 굵기 미리보기 점
+      const tTrack = ImageTex.get(ctx.gl, IMG.track), tKnob = ImageTex.get(ctx.gl, IMG.knob);
+      if (tTrack.ready && tKnob.ready) {
+        const th = sl.imgW / tTrack.aspect;                                   // 트랙 그림 높이 (위아래 투명 여백 포함)
+        ui.drawImage(tTrack, sl.imgX, sl.y - th / 2, sl.imgW, th);
+        const kd = sl.knob;                                                   // 손잡이는 트랙 띠보다 조금 크게 (2026-11-20: 피그마 크기)
+        ui.drawImage(tKnob, kx - kd / 2, sl.y - kd / 2, kd, kd);
+      } else {
+        ui.drawText(ui.text('굵기'), sl.x0 - s * 0.03, sl.y, s * 0.035, 'right', Infinity, [1, 0.92, 0.85, 0.85]);
+        ui.rect(sl.x0, sl.y - sl.h / 2, sl.x1 - sl.x0, sl.h, [1, 1, 1, 0.25], sl.h / 2);
+        ui.rect(sl.x0, sl.y - sl.h / 2, kx - sl.x0, sl.h, [1, 0.75, 0.42, 0.9], sl.h / 2);
+        ui.circle(kx, sl.y, s * 0.06, [1, 1, 1, 0.95]);
+        ui.circle(kx, sl.y, Math.max(s * 0.008, s * 0.05 * st.size), [0.3, 0.2, 0.12, 1]);   // 손잡이 안에 굵기 미리보기 점
+      }
 
-      for (const b of st.buttons) ui.button(b);
+      for (const b of st.buttons) ui.imageButton(b);
+      Work.drawInventory(ctx);                         // (2026-11-20) 아래 슬롯 바 (끌던 재료가 버튼 위에 보이도록 버튼 다음에)
 
       if (performance.now() < st.toastUntil) {
         const t = ui.text('무늬를 저장했어요 (콘솔 확인)', { weight: 400 });
@@ -259,6 +303,7 @@
       for (const b of st.buttons) if (ctx.ui.hit(b, x, y)) { onButton(ctx, b.id); return; }
       for (const b of st.tools) if (ctx.ui.hit(b, x, y)) { onButton(ctx, b.id); return; }
       if (sliderHit(ctx, x, y)) { st.sliderDrag = true; sliderSet(x); return; }
+      if (Work.inInventory(ctx, x, y)) { Work.down(ctx, x, y, type, cb); return; }   // (2026-11-20) 슬롯을 잡으면 재료 끌기 (옹기 새기기보다 먼저)
       setPtr(ctx, x, y, type);
       st.cursorVisible = true;
       if (hitPot(ctx, st.ptr.x, st.ptr.y)) { st.stroke = { lastU: null, lastV: 0 }; return; }   // 획 시작 — 실제 점은 update 에서 찍는다

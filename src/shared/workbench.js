@@ -1,6 +1,8 @@
 // src/shared/workbench.js — 1~3단계 공통 작업대
 // ① 물레는 저절로 돌지 않는다: 마우스 왼쪽 버튼(또는 한 손가락)으로 누른 채 좌우로 흔들 때만 그 방향으로 돈다
 // ② 오른쪽 세로 인벤토리(재료 슬롯) ③ 안내 문구(조작 + 결과) ④ 1~2단계가 함께 쓰는 흙 덩어리 메시
+//    (2026-11-20 피그마 적용) ② → 화면 아래 가로 슬롯 바 4칸(흙·물·잿물·장작 그림) + 그 아래 그림 버튼 줄(buttonRow).
+//    재료는 자유롭게 끌고, 화면이 받지 않은 재료(잘못된 재료)는 안내 문구와 함께 슬롯으로 튕겨 돌아간다
 // ⑤ 3단계(흙 쌓고 빚기)가 쓰는 "쌓이는 옹기 벽" 메시 — 올린 단의 반지름이 바뀌면 바로 다시 계산한다
 
 const Work = (() => {
@@ -9,7 +11,12 @@ const Work = (() => {
   const cam = Camera.createOrbit();
   // 4단계(stage4-shape.js)와 같은 카메라 값: 각도 12°, 바라보는 높이 0.65(기본 옹기 높이 1.3의 절반), 같은 거리 → 물레·옹기 크기가 단계가 바뀌어도 똑같다
   const FOCUS_DEFAULT = 0.65;
-  const camCfg = { yaw: 0, pitch: (12 * Math.PI) / 180, target: [0, FOCUS_DEFAULT, 0], dist: 4, fovy: FOVY };
+  // (2026-11-20) shiftY: 아래 슬롯 바·버튼이 생겨 물레·옹기가 너무 낮아 보여서, 각도는 그대로 두고 장면 전체를 화면 높이의 8% 위로 (core/camera.js 렌즈 이동)
+  const SHIFT_Y = 0.08;
+  // (2026-11-20) 물레·옹기 화면 크기 배율 — 배경 그림 속 소품에 비해 너무 커서 30% 작게 (0.7). 카메라 거리를 1/0.7 배로 늘려 줄인다
+  // (2026-11-20 사용자 조정) 0.7 → 0.8 (원래의 80%)
+  const SCENE_SCALE = 0.8;
+  const camCfg = { yaw: 0, pitch: (12 * Math.PI) / 180, target: [0, FOCUS_DEFAULT, 0], dist: 4, fovy: FOVY, shiftY: SHIFT_Y };
   /* 줌아웃 배율 (사용자 결정, 2026-11-16): 화면 중심(바라보는 높이)과 기준 거리는 1~3단계 모두 처음 값 그대로.
    * 3단계에서 옹기가 기본 높이보다 높아지면 그 비율만큼 거리를 늘린다(zoom > 1). 1·2단계는 항상 1.
    * 화면 중심이 고정일 때 거리를 (꼭대기 높이 − 중심) 비율로 늘리면 꼭대기의 화면 위치가 정확히 그대로 유지된다 (투영식에서 dist ∝ h) */
@@ -33,19 +40,25 @@ const Work = (() => {
   function resetView() { view.userZoom = 1; view.panY = 0; view.panEnabled = false; view.targetMin = view.targetMax = FOCUS_DEFAULT; }
   const m = mat4.create();
 
+  // (2026-11-20) slot = 슬롯 칸 그림, item = 끌고 다니는 재료 그림. emoji·name 은 그림을 불러오기 전에 대신 보인다
+  // 타래(coil)는 피그마에 없어 뺐다 — 3단계는 흙을 끌어다 쌓는다
   const ITEMS = {
-    soil:  { emoji: '🟤', name: '흙' },
-    water: { emoji: '💧', name: '물' },
-    coil:  { emoji: '🟫', name: '타래' },
+    soil:  { emoji: '🟤', name: '흙',   slot: './assets/ui/slots/slot-clay.png',     item: './assets/items/item-clay.png' },
+    water: { emoji: '💧', name: '물',   slot: './assets/ui/slots/slot-water.png',    item: './assets/items/item-water.png' },
+    glaze: { emoji: '🥣', name: '잿물', slot: './assets/ui/slots/slot-glaze.png',    item: './assets/items/item-glaze-bowl.png' },
+    wood:  { emoji: '🪵', name: '장작', slot: './assets/ui/slots/slot-firewood.png', item: './assets/items/item-firewood.png' },
   };
+  const ALL_ITEMS = ['soil', 'water', 'glaze', 'wood'];   // 피그마: 1~5단계 모두 같은 4칸
+  const BACK_TIME = 0.35;                                  // 잘못된 재료가 슬롯으로 튕겨 돌아가는 시간(초)
 
   /* 1~3단계가 함께 쓰는 상태 */
   const S = {
     angle: 0,                         // 물레 각도 — 드래그할 때만 바뀐다
     clay: { wet: 0, smooth: 0 },      // 1단계에서 만든 반죽 상태 (2단계가 이어받는다)
   };
-  const inv = { items: [], open: 0, target: 1 };   // open: 0(접힘) ~ 1(펼침)
+  const inv = { items: [], open: 0, target: 1 };   // open: 0(접힘) ~ 1(펼침) — (2026-11-20) 접히면 슬롯 바가 화면 아래로 내려간다
   const g = { mode: null, x0: 0, y0: 0, lastX: 0, lastY: 0, onClay: false, item: null, ix: 0, iy: 0, off: 0 };
+  let back = null;                                  // (2026-11-20) 튕겨 돌아가는 재료 { id, x, y, t } — t: 0 → 1
   let hintLines = [], hintUntil = 0;
 
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -55,39 +68,91 @@ const Work = (() => {
   function setInventory(ids, open) { inv.items = ids; inv.target = open ? 1 : 0; }
   function hint(lines) { hintLines = Array.isArray(lines) ? lines : [lines]; hintUntil = performance.now() + 1700; }
 
-  // 오른쪽 가장자리에 세로로 쌓는다. 접히면(open→0) 슬롯이 위쪽 머리글로 줄어든다
+  /* (2026-11-20 피그마) 화면 아래부터 쌓는다: 맨 아래 버튼 줄(yBtn) → 그 위 슬롯 바(가로 가운데 정렬).
+   * 크기는 짧은 변 s 비율 — 세로 휴대폰에서 피그마와 비슷한 위치(슬롯 ≈ 0.86H, 버튼 ≈ 0.95H)가 된다.
+   * 접히면(open → 0) 슬롯 바가 화면 아래로 내려간다. restTop = 펼쳤을 때 슬롯 바 윗변 (화면이 그 위에 슬라이더 등을 둘 때 쓴다) */
+  /* (2026-11-20 비율 조정) 피그마 9:16 프레임에서 잰 값. 크기·가로 = 프레임 폭 u 의 비율, 세로 위치 = 화면 높이 H 의 비율.
+   * u = min(W, H × 9/16) — 배경 그림(높이 기준)이 화면에서 차지하는 폭. 세로 휴대폰은 화면 폭, PC 가로 창은 가운데 배경 폭이 된다.
+   * 그림 파일에는 투명 여백이 있어서, "보이는 부분" 크기를 맞추도록 그림 크기를 나눠 둔다 (slot 그림은 보이는 부분이 88%) */
+  const FIG = {
+    slotVis: 0.177, slotImg: 0.201, slotPitch: 0.204, slotY: 0.826,   // 슬롯: 보이는 폭 0.177u, 칸 사이 0.027u, 중심 높이 0.826H
+    btnW: 0.333, btnGap: 0.052, btnY: 0.93,                            // 버튼: 폭 0.333u (높이는 그림 비율), 두 개면 사이 0.052u, 중심 0.93H
+  };
+  const frameUnit = (ctx) => Math.min(ctx.W, ctx.H * 9 / 16);
+  const BTN_H = 0.1;                                       // 버튼 높이 = s × 0.1 (터치 대상은 짧은 변의 8% 이상) — (2026-11-20) 그림 전 대체 높이로만 쓴다
   function layout(ctx) {
-    const { W, H, s } = ctx;
-    const sz = s * 0.15, gap = s * 0.02, hdr = s * 0.07;
-    const x = W - sz * 0.5 - gap * 2, y0 = H * 0.2;
-    const slots = inv.items.map((id, i) => ({
-      id, x, y: y0 + hdr + gap + (i + 0.5) * (sz + gap) * inv.open, h: sz * inv.open,
-    }));
-    return { x, y0, sz, gap, hdr, slots, pw: sz + gap * 2, body: inv.items.length * (sz + gap) * inv.open };
+    const { W, H } = ctx, u = frameUnit(ctx);
+    const bh = (u * FIG.btnW) / 3, yBtn = H * FIG.btnY;   // 버튼 그림 비율 3:1 → 높이 0.111u (터치 대상 8% 이상)
+    const sz = u * FIG.slotImg, pitch = u * FIG.slotPitch, vis = u * FIG.slotVis;
+    const yRest = H * FIG.slotY;
+    const y = yRest + (1 - inv.open) * (H - yRest + sz);
+    const n = inv.items.length, span = Math.max(0, n - 1) * pitch;   // 첫 칸 중심 ~ 마지막 칸 중심
+    const slots = inv.items.map((id, i) => ({ id, x: W / 2 - span / 2 + i * pitch, y }));
+    return { u, sz, gap: pitch - vis, slots, x0: W / 2 - span / 2 - vis / 2, x1: W / 2 + span / 2 + vis / 2,
+      top: y - vis / 2, bottom: y + vis / 2, restTop: yRest - vis / 2, yBtn, bh };
   }
 
   /** (x, y)가 인벤토리 패널 위인지 — 화면이 자기 조작(고리 잡기 등)보다 인벤토리를 먼저 양보할 때 쓴다 */
   function inInventory(ctx, x, y) {
-    const L = layout(ctx);
-    const ph = L.hdr + (inv.items.length ? L.gap + L.body : 0);
-    return Math.abs(x - L.x) <= L.pw / 2 && y >= L.y0 && y <= L.y0 + ph;
+    if (!inv.items.length || inv.open < 0.5) return false;
+    const L = layout(ctx), pad = ctx.s * 0.02;
+    return x >= L.x0 - pad && x <= L.x1 + pad && y >= L.top - pad && y <= L.bottom + pad;
+  }
+
+  /** 재료 그림 하나: 중심 (x, y), 긴 변 d. 그림이 아직 없으면 이모지 */
+  function drawItem(ctx, id, x, y, d, alpha = 1) {
+    const t = ImageTex.get(ctx.gl, ITEMS[id].item);
+    if (t.ready) {
+      const w = t.aspect >= 1 ? d : d * t.aspect, h = w / t.aspect;
+      ctx.ui.drawImage(t, x - w / 2, y - h / 2, w, h, [1, 1, 1, alpha]);
+    } else ctx.ui.drawText(ctx.ui.text(ITEMS[id].emoji), x, y, d, 'center', Infinity, [1, 1, 1, alpha]);
   }
 
   function drawInventory(ctx) {
     const { ui, s } = ctx;
     const L = layout(ctx);
-    const ph = L.hdr + (inv.items.length ? L.gap + L.body : 0);
-    ui.rect(L.x - L.pw / 2, L.y0, L.pw, ph, [0, 0, 0, 0.38], s * 0.025);
-    ui.drawText(ui.text(inv.target > 0.5 ? '재료 ▲' : '재료 ▼'), L.x, L.y0 + L.hdr / 2, s * 0.032, 'center', L.pw * 0.9, [1, 1, 1, 0.9]);
-    if (inv.open > 0.05) {
+    if (inv.open > 0.01) {
       L.slots.forEach((sl) => {
-        ui.rect(sl.x - L.sz / 2, sl.y - sl.h / 2, L.sz, sl.h, [1, 1, 1, 0.14 * inv.open], s * 0.02);
-        ui.drawText(ui.text(ITEMS[sl.id].emoji), sl.x, sl.y - sl.h * 0.12, sl.h * 0.5, 'center', Infinity, [1, 1, 1, inv.open]);
-        ui.drawText(ui.text(ITEMS[sl.id].name), sl.x, sl.y + sl.h * 0.33, sl.h * 0.2, 'center', L.sz * 0.9, [1, 1, 1, inv.open]);
+        // 지금 끌고 있거나 돌아오는 중인 재료의 칸은 살짝 흐리게 (재료가 칸에서 빠져나간 느낌)
+        const away = g.item === sl.id || (back && back.id === sl.id);
+        const t = ImageTex.get(ctx.gl, ITEMS[sl.id].slot);
+        if (t.ready) ui.drawImage(t, sl.x - L.sz / 2, sl.y - L.sz / 2, L.sz, L.sz, away ? [1, 1, 1, 0.6] : [1, 1, 1, 1]);
+        else {
+          ui.rect(sl.x - L.sz / 2, sl.y - L.sz / 2, L.sz, L.sz, [1, 1, 1, 0.14], s * 0.02);
+          ui.drawText(ui.text(ITEMS[sl.id].emoji), sl.x, sl.y - L.sz * 0.12, L.sz * 0.5);
+          ui.drawText(ui.text(ITEMS[sl.id].name), sl.x, sl.y + L.sz * 0.33, L.sz * 0.2, 'center', L.sz * 0.9);
+        }
       });
     }
+    // 슬롯으로 튕겨 돌아가는 재료: 놓은 곳 → 제 칸 (끝에서 살짝 감속)
+    if (back) {
+      const sl = L.slots.find((q) => q.id === back.id);
+      const k = 1 - Math.pow(1 - back.t, 3);
+      const tx = sl ? sl.x : back.x, ty = sl ? sl.y : L.bottom + L.sz;
+      drawItem(ctx, back.id, lerp(back.x, tx, k), lerp(back.y, ty, k), lerp(L.u * 0.14, L.sz * 0.6, k));   // (2026-11-20) 크기도 프레임 폭 u 기준
+    }
     // 끌고 있는 재료
-    if (g.mode === 'item') ui.drawText(ui.text(ITEMS[g.item].emoji), g.ix, g.iy - g.off, s * 0.12);
+    if (g.mode === 'item') drawItem(ctx, g.item, g.ix, g.iy - g.off, L.u * 0.14);
+  }
+
+  /** (2026-11-20) 재료를 (x, y)에서 제 슬롯으로 튕겨 보낸다 — 잘못된 재료이거나 슬롯 바 위에서 놓았을 때 */
+  function sendBack(id, x, y) { back = { id, x, y, t: 0 }; }
+
+  /**
+   * (2026-11-20) 화면 맨 아래 그림 버튼 줄 — 가운데 정렬. defs = [{ id, img(경로), label(그림 전 대체 글자), dim? }]
+   * 버튼 폭은 그림 비율대로 (그림 전에는 3:1). 반환값은 ui.imageButton / ui.hit 에 그대로 쓴다
+   */
+  function buttonRow(ctx, defs) {
+    const { W } = ctx, L = layout(ctx), gap = L.u * FIG.btnGap;
+    // (2026-11-20 비율 조정) 폭을 피그마 값(0.333u)으로 고정하고 높이는 그림 비율대로
+    const list = defs.map((d) => {
+      const tex = ImageTex.get(ctx.gl, d.img), w = L.u * FIG.btnW;
+      return { ...d, tex, w, h: w / (tex.ready ? tex.aspect : 3), y: L.yBtn };
+    });
+    const total = list.reduce((a, b) => a + b.w, 0) + gap * Math.max(0, list.length - 1);
+    let x = W / 2 - total / 2;
+    for (const b of list) { b.x = x + b.w / 2; x += b.w + gap; }
+    return list;
   }
 
   /* ---------- 안내 문구: 제목 / 조작 설명(여러 줄) / 결과 ---------- */
@@ -103,15 +168,48 @@ const Work = (() => {
     if (!hinting && goal) ui.drawText(ui.text(goal, { weight: 400 }), W / 2, y + s * 0.01, s * 0.03, 'center', W * 0.94, [1, 0.92, 0.85, 0.55]);
   }
 
+  /* ---------- (2026-11-20 피그마) 위쪽 단계 배너: 제목·안내 글자 대신 배너 그림 + 그 아래 작은 한 줄 ----------
+   * n = 피그마 단계 번호 (banner-stage{n}.png). 피그마에서 잰 값: 보이는 폭 0.745u, 세로 0.10H ~ 0.21H.
+   * 배너 그림은 보이는 부분이 폭의 98.1%, 세로 중심이 그림 높이의 49.1% 지점.
+   * sub = 배너만으로 알 수 없는 정보(물 붓기 단계, 지금 값 등) 한 줄. hint(잘못된 재료 안내)가 있으면 그것을 먼저 보여 준다 */
+  const BANNER = { visW: 0.745, visTop: 0.10, visBot: 0.21, visFrac: 0.981, visMid: 0.491 };
+  function drawBanner(ctx, n, sub) {
+    const { W, H, ui } = ctx, u = frameUnit(ctx);
+    const t = ImageTex.get(ctx.gl, `./assets/ui/banners/banner-stage${n}.png`);
+    const cy = H * (BANNER.visTop + BANNER.visBot) / 2;
+    if (t.ready) {
+      const w = (u * BANNER.visW) / BANNER.visFrac, h = w / t.aspect;
+      ui.drawImage(t, W / 2 - w / 2, cy - h * BANNER.visMid, w, h);
+    } else {
+      ui.drawText(ui.text(`${n}단계`), W / 2, cy, u * 0.08, 'center', u * 0.9, [0.3, 0.18, 0.1, 1]);   // 그림 전 대체 글자
+    }
+    // 배너 아래 한 줄(또는 안내 두 줄): 밝은 바탕 알약 위에 진한 글자 (배경 벽 위에서도 잘 읽히게)
+    const hinting = performance.now() < hintUntil;
+    const lines = hinting ? hintLines : (sub ? [sub] : []);
+    let y = H * BANNER.visBot + u * 0.055;
+    for (const l of lines) {
+      // sub 는 값이 계속 바뀌는 글자(폭 %, 진행 %) → dynText(바뀔 때만 다시 만들고 이전 것은 지움). 안내(hint)는 정해진 문장이라 캐시
+      const tx = hinting ? ui.text(l) : ui.dynText('bannerSub', l), th = u * 0.045, tw = Math.min(tx.aspect * th, u * 0.86);
+      ui.rect(W / 2 - tw / 2 - u * 0.03, y - th * 0.75, tw + u * 0.06, th * 1.5, [1, 0.96, 0.88, 0.88], th * 0.75);
+      ui.drawText(tx, W / 2, y, th, 'center', u * 0.86, hinting ? [0.8, 0.35, 0.1, 1] : [0.3, 0.18, 0.1, 1]);
+      y += u * 0.075;
+    }
+  }
+
   /* ---------- 입력: 재료 끌기 / 물레 돌리기 / 눌러서 터치 ----------
    * cb = { hitClay(ctx,x,y) → bool, onDrop(id,x,y), onTap(x,y) }
-   * 누른 채 조금 움직이면 '물레 돌리기'가 되고, 움직이지 않고 떼면 '터치'가 된다 */
+   * 누른 채 조금 움직이면 '물레 돌리기'가 되고, 움직이지 않고 떼면 '터치'가 된다
+   * (2026-11-20) onDrop 은 재료를 받았으면 true 를 돌려준다. true 가 아니면(잘못된 재료·잘못된 곳) 재료가 슬롯으로 튕겨 돌아간다
+   *              — 안내 문구(hint)는 화면이 onDrop 안에서 띄운다 */
   function down(ctx, x, y, type, cb) {
     const L = layout(ctx);
     g.off = type === 'mouse' ? 0 : ctx.s * 0.08;
     if (inv.open > 0.9) {
       for (const sl of L.slots) {
-        if (Math.abs(x - sl.x) <= L.sz / 2 && Math.abs(y - sl.y) <= L.sz / 2) { g.mode = 'item'; g.item = sl.id; g.ix = x; g.iy = y; return; }
+        if (Math.abs(x - sl.x) <= L.sz / 2 && Math.abs(y - sl.y) <= L.sz / 2) {
+          if (back && back.id === sl.id) back = null;   // 돌아오는 중인 재료를 다시 잡으면 바로 잡힌다
+          g.mode = 'item'; g.item = sl.id; g.ix = x; g.iy = y; return;
+        }
       }
     }
     g.mode = 'press'; g.x0 = g.lastX = x; g.y0 = g.lastY = y; g.onClay = cb.hitClay(ctx, x, y);
@@ -128,14 +226,16 @@ const Work = (() => {
   function up(ctx, x, y, cb) {
     const mode = g.mode; g.mode = null;
     if (mode === 'item') {
-      const L = layout(ctx);
-      if (x < L.x - L.pw / 2) cb.onDrop(g.item, x, y - g.off);   // 인벤토리 위에서 놓으면 취소
+      const id = g.item, iy = y - g.off;
       g.item = null;
+      // 인벤토리(슬롯 바) 위에서 놓으면 취소 → 제자리로. 화면이 받지 않은 재료도 제자리로 튕겨 돌아간다
+      const ok = !inInventory(ctx, x, iy) && cb.onDrop(id, x, iy) === true;
+      if (!ok) sendBack(id, x, iy);
     } else if (mode === 'press' && g.onClay && cb.onTap) cb.onTap(x, y);
   }
   const holding = () => g.mode === 'press' && g.onClay;     // 2단계: 흙을 누르고 있는 동안
-  /** 두 번째 손가락이 닿아(핀치) 한 손가락 조작이 끊겼을 때: 끌던 재료는 놓지 않고 취소한다 */
-  function cancel() { g.mode = null; g.item = null; }
+  /** 두 번째 손가락이 닿아(핀치) 한 손가락 조작이 끊겼을 때: 끌던 재료는 놓지 않고 취소한다 (2026-11-20: 제자리로 튕겨 돌아간다) */
+  function cancel() { if (g.mode === 'item' && g.item) sendBack(g.item, g.ix, g.iy - g.off); g.mode = null; g.item = null; }
 
   /* ---------- 화면 위치 판정 ---------- */
   // 반지름 R, 높이 h인 물체가 화면에서 차지하는 사각형(여유 포함) 안에 (x,y)가 있는지
@@ -151,8 +251,9 @@ const Work = (() => {
 
   function update(ctx, dt) {
     inv.open += (inv.target - inv.open) * Math.min(1, dt * 8);
+    if (back && (back.t += dt / BACK_TIME) >= 1) back = null;   // 튕겨 돌아가기 끝
     // 기준 거리: 가장 큰 옹기 지름(1.8 + 고리)이 가로로 들어오는 거리 — 4단계와 같은 값. 여기에 줌아웃 배율(3단계만 1보다 큼)을 곱한다
-    const dist = Camera.fitDistance(ctx.W / ctx.H, FOVY, 2.2, 2.6) * 1.05 * zoom;
+    const dist = Camera.fitDistance(ctx.W / ctx.H, FOVY, 2.2, 2.6) * 1.05 * zoom / SCENE_SCALE;   // (2026-11-20) ÷ SCENE_SCALE = 화면에서 SCENE_SCALE 배 크기
     // 거리가 바뀌면 부드럽게 따라간다 (갑자기 튀면 조절 중에 놓치기 쉽다)
     if (!distReady) { autoDist = dist; distReady = true; }
     else autoDist += (dist - autoDist) * Math.min(1, dt * 6);
@@ -238,6 +339,8 @@ const Work = (() => {
   return {
     S, cam, FOCUS_DEFAULT, setZoom, view, zoomBy, panBy, resetView, easeBack, setInventory, hint, drawInventory, drawGuide,
     down, move, up, cancel, holding, hitClay, inInventory, update, drawScene, setLump, drawLump, setWall, drawWall,
+    ALL_ITEMS, buttonRow, bottomLayout: layout,      // (2026-11-20) 아래 슬롯 바 4칸 · 그림 버튼 줄 · 아래쪽 배치 정보
+    drawBanner,                                      // (2026-11-20) 위쪽 단계 배너
     get inv() { return inv; },
   };
 })();

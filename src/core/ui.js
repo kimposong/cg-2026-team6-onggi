@@ -31,7 +31,9 @@ const UI = (() => {
   out vec4 outColor;
   void main() {
     vec2 q = abs(vLocal - uSize * 0.5) - (uSize * 0.5 - vec2(uRadius));
-    float dist = length(max(q, 0.0)) - uRadius;
+    // (2026-11-20 수정) 안쪽 거리 min(max(q.x, q.y), 0) 을 더한다 — 빠뜨리면 사각형 안쪽이 dist = −uRadius 가 되어
+    // 둥글기 0 인 사각형(배경 그림·글자)은 a = 0.5, 반투명하게 그려진다 (뒤 색이 비쳐 채도가 낮아 보였음)
+    float dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - uRadius;
     float a = clamp(0.5 - dist, 0.0, 1.0);
     vec4 c = uUseTex ? texture(uTex, vUV) * uColor : uColor;
     outColor = vec4(c.rgb, c.a * a);
@@ -107,10 +109,45 @@ const UI = (() => {
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
+    /** (2026-11-20) 그림 텍스처(ImageTex.load)를 왼쪽 위 (x, y), 크기 w × h 로 그린다. 아직 안 불러왔으면 건너뛴다 */
+    function drawImage(t, x, y, w, h, color = [1, 1, 1, 1]) {
+      if (!t || !t.tex) return;
+      gl.bindTexture(gl.TEXTURE_2D, t.tex);
+      gl.uniform4f(locs.uRect, x, y, w, h);
+      gl.uniform2f(locs.uSize, w, h);
+      gl.uniform1f(locs.uRadius, 0);
+      gl.uniform4fv(locs.uColor, color);
+      gl.uniform1i(locs.uUseTex, 1);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    /** (2026-11-20) 그림을 화면 W × H 에 비율을 지키며 꽉 채운다 (CSS 의 background-size: cover). 넘치는 쪽은 가운데 기준으로 잘린다 */
+    function drawCover(t, W, H) {
+      if (!t || !t.tex) return;
+      const k = Math.max(W / t.w, H / t.h);
+      const w = t.w * k, h = t.h * k;
+      drawImage(t, (W - w) / 2, (H - h) / 2, w, h);
+    }
+
+    /** (2026-11-20) 그림의 위아래를 화면 위아래에 맞춘다 (높이 기준). 가로는 가운데 정렬 —
+     *  화면이 그림보다 좁으면(세로 휴대폰) 양옆이 잘리고, 넓으면(PC 창) 양옆이 비어 clearColor 가 보인다 */
+    function drawFitHeight(t, W, H) {
+      if (!t || !t.tex) return;
+      const w = t.aspect * H;
+      drawImage(t, (W - w) / 2, 0, w, H);
+    }
+
     /** 버튼 하나 그리기: 둥근 사각형 + 가운데 글자 */
     function button(b) {
       rect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, b.primary ? [0.72, 0.42, 0.24, 1] : [1, 1, 1, 0.14], b.h * 0.3);
       drawText(text(b.label), b.x, b.y, b.h * 0.5, 'center', b.w * 0.85);
+    }
+
+    /** (2026-11-20) 그림 버튼: b.tex(ImageTex) 를 중심 (b.x, b.y), 크기 b.w × b.h 로. b.dim 이면 흐리게(아직 못 누름)
+     *  그림을 불러오기 전(또는 실패)에는 원래 글자 버튼(b.label)으로 그린다 */
+    function imageButton(b) {
+      if (b.tex && b.tex.tex) drawImage(b.tex, b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, b.dim ? [1, 1, 1, 0.5] : [1, 1, 1, 1]);
+      else button(b);
     }
 
     /** 화면 아래 버튼 두 개 배치 — 픽셀 고정값이 아니라 화면 비율로 잡는다 (기기마다 해상도가 다르므로) */
@@ -131,7 +168,7 @@ const UI = (() => {
       return Math.abs(px - btn.x) <= btn.w / 2 && Math.abs(py - btn.y) <= btn.h / 2;
     }
 
-    return { begin, rect, circle, drawText, text, dynText, button, layoutBottomPair, hit };
+    return { begin, rect, circle, drawText, drawImage, drawCover, drawFitHeight, text, dynText, button, imageButton, layoutBottomPair, hit };
   }
 
   return { create };

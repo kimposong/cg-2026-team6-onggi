@@ -3,6 +3,8 @@
 // 가이드(고리·높이 축)는 "지금 다듬는 단"에만 있다. 다음 타래를 올리면 꺼졌다가, 새 단이 다 올라오면 다시 켜진다 (사용자 요청 3)
 // 올린 단은 다음 타래를 올리면 굳는다(다시 조절 불가). 되돌리려면 「뒤로가기」로 마지막 단을 내려놓는다 (한 단도 없으면 2단계로)
 // 물레는 자동으로 돌지 않는다: 빈 곳을 누른 채 좌우로 흔들면 그 방향으로 돈다 (shared/workbench.js)
+// (2026-11-20 피그마) 타래 대신 아래 슬롯 바의 「흙」을 끌어다 놓아 한 단을 쌓는다. 버튼은 그림 버튼:
+//   「되돌리기」(btn-undo) = 원래 「뒤로가기」 기능 그대로, 「다음으로」(btn-next) = 원래 「완료」 기능 그대로 (6단 전에는 흐리게)
 
 (() => {
   const { mat4 } = glMatrix;
@@ -143,14 +145,16 @@
   /* ---------- 작업대(Work) 콜백: 타래 놓기 ---------- */
   const cb = {
     hitClay: (ctx, x, y) => Work.hitClay(ctx, x, y, 0.95, Math.max(st.top, 0.25)),
+    // (2026-11-20) 타래(coil) → 흙(soil). 받으면 true, 아니면 false → 작업대가 재료를 슬롯으로 튕겨 돌려보낸다
     onDrop(id, x, y) {
       const ctx = cb.ctx;
-      if (id !== 'coil') return;
-      if (st.layers >= LAYERS) { Work.hint([`타래 ${LAYERS}단을 다 올렸어요`, '마지막 단을 다듬고 완료를 눌러 주세요']); return; }
-      if (!cb.hitClay(ctx, x, y)) { Work.hint(['타래가 바닥판 테두리에 닿도록', '옹기 위에 놓아 주세요']); return; }
+      if (id !== 'soil') { Work.hint(['옹기를 쌓을 때는 흙이 필요해요', '흙을 끌어다 옹기 위에 올려 주세요']); return false; }
+      if (st.layers >= LAYERS) { Work.hint([`흙 ${LAYERS}단을 다 올렸어요`, '마지막 단을 다듬고 다음으로를 눌러 주세요']); return false; }
+      if (!cb.hitClay(ctx, x, y)) { Work.hint(['흙이 바닥판 테두리에 닿도록', '옹기 위에 놓아 주세요']); return false; }
       st.layers++;                                   // 한 단 올리기 — 올리는 순간 이미 성형된(기본 옹기) 모양이다
       st.guideA = 0;                                 // 이전 단의 가이드를 끈다 → 새 단이 다 올라오면 그 단의 가이드가 켜진다
       st.hover = null; st.sq = 1; st.wallDirty = true;
+      return true;
     },
   };
 
@@ -164,7 +168,7 @@
       st.guideA = 0; st.hover = null; st.drag = null; st.wallDirty = true;
     }
     if (id === 'done') {
-      if (st.layers < LAYERS) { Work.hint([`타래를 ${LAYERS}단까지 올려야 완성돼요`, `(지금 ${st.layers}/${LAYERS})`]); return; }
+      if (st.layers < LAYERS) { Work.hint([`흙을 ${LAYERS}단까지 올려야 완성돼요`, `(지금 ${st.layers}/${LAYERS})`]); return; }
       // 4단계(꾸미기)로 — exit 가 toData() 를 넘긴다
       console.log('[옹기 형태]', JSON.stringify(ctx.pot_main.toData()));
       ctx.go('stage4-decorate');
@@ -179,7 +183,7 @@
       Object.assign(st, { layers: 0, top: 0, sq: 0, guideA: 0, drag: null, hover: null, ring: null, axis: null,
         toastUntil: 0, wallDirty: true, baseDirty: true });
       st.cursor.visible = false;
-      Work.setInventory(['coil'], true);              // 3단계 인벤토리: 타래만
+      Work.setInventory(Work.ALL_ITEMS, true);        // 3단계 인벤토리: 타래만 → (2026-11-20 피그마) 슬롯 바 4칸, 흙으로 쌓는다
       Work.resetView();                               // 사용자 줌·상하 이동은 기본값에서 시작
       Work.view.panEnabled = true;                    // 옹기 밖을 잡고 위아래로 끌면 화면이 움직인다 (확대했을 때 위아래 보기)
     },
@@ -224,8 +228,11 @@
       }
 
       computeScreenInfo(ctx);
-      st.buttons = ctx.ui.layoutBottomPair(ctx.W, ctx.H,
-        { id: 'back', label: '뒤로가기' }, { id: 'done', label: '완료', primary: st.layers >= LAYERS });
+      // (2026-11-20) 글자 버튼 「뒤로가기」·「완료」 → 그림 버튼 「되돌리기」·「다음으로」 (기능은 그대로, 6단 전에는 다음으로를 흐리게)
+      st.buttons = Work.buttonRow(ctx, [
+        { id: 'back', img: './assets/ui/buttons/btn-undo.png', label: '되돌리기' },
+        { id: 'done', img: './assets/ui/buttons/btn-next.png', label: '다음으로', dim: st.layers < LAYERS },
+      ]);
     },
 
     draw(ctx) {
@@ -283,16 +290,21 @@
       // 제목과 안내 (단계 진행에 따라 바뀐다)
       let lines, goal;
       if (st.layers === 0) {
-        lines = ['바닥판의 고리를 좌우로 밀어 바닥 크기를 정하고', `타래를 끌어다 올려 첫 단을 쌓으세요 (0/${LAYERS})`];
+        lines = ['바닥판의 고리를 좌우로 밀어 바닥 크기를 정하고', `흙을 끌어다 올려 첫 단을 쌓으세요 (0/${LAYERS})`];
         goal = '올린 단마다 고리로 폭을, 가운데 축으로 높이를 정해요';
       } else if (st.layers < LAYERS) {
-        lines = [`${st.layers}단의 폭(고리 좌우)과 높이(축 위아래)를 조절하고`, `다 됐으면 다음 타래를 올리세요 (${st.layers}/${LAYERS})`];
-        goal = '다음 타래를 올리면 이 단은 굳어요. 되돌리려면 뒤로가기';
+        lines = [`${st.layers}단의 폭(고리 좌우)과 높이(축 위아래)를 조절하고`, `다 됐으면 흙을 또 올리세요 (${st.layers}/${LAYERS})`];
+        goal = '흙을 또 올리면 이 단은 굳어요. 되돌리려면 되돌리기';
       } else {
-        lines = [`✨ ${LAYERS}단을 다 올렸어요`, '마지막 단을 다듬고 완료를 누르세요'];
+        lines = [`✨ ${LAYERS}단을 다 올렸어요`, '마지막 단을 다듬고 다음으로를 누르세요'];
         goal = '빈 곳을 누른 채 좌우로 흔들면 물레가 돌아 옆면을 볼 수 있어요';
       }
-      Work.drawGuide(ctx, '③ 흙 쌓고 빚기', lines, goal);
+      // (2026-11-20 피그마) 제목·안내 글자 → 배너 3 「옹기 빚기」. 위 lines·goal 은 원래 안내 문구 기록으로 남겨 둔다.
+      // 배너 아래 한 줄 = 지금 다듬는 대상의 값 + 몇 단째인지 (원래 따로 그리던 값 글자를 여기로 옮김)
+      const label = st.layers === 0
+        ? `바닥 폭 ${pct(pot.shape.base, Pot.R_MIN, Pot.R_MAX)}% · 흙을 올려 쌓아요 (0/${LAYERS})`
+        : `${st.layers}단 폭 ${pct(pot.shape.radii[cur()], Pot.R_MIN, Pot.R_MAX)}% · 높이 ${pct(pot.shape.heights[cur()], Pot.LH_MIN, Pot.LH_MAX)}% (${st.layers}/${LAYERS})`;
+      Work.drawBanner(ctx, 3, label);
 
       if (st.ring && A > 0.01) {
         // 높이 손잡이 (축 맨 위의 동그라미)
@@ -306,14 +318,10 @@
         ui.drawText(ui.text(st.layers === 0 ? '바닥' : String(st.layers)), b.cx - b.a - s * 0.035, b.cy, s * 0.04, 'right', Infinity, [1, 0.8, 0.5, A]);
       }
 
-      // 지금 다듬는 대상의 현재 값
-      const label = st.layers === 0
-        ? `바닥 폭 ${pct(pot.shape.base, Pot.R_MIN, Pot.R_MAX)}%`
-        : `${st.layers}단 폭 ${pct(pot.shape.radii[cur()], Pot.R_MIN, Pot.R_MAX)}% · 높이 ${pct(pot.shape.heights[cur()], Pot.LH_MIN, Pot.LH_MAX)}%`;
-      ui.drawText(ui.dynText('value', label), W / 2, H * 0.055 + s * 0.225, s * 0.045, 'center', W * 0.9, [1, 0.8, 0.5, 1]);
+      // 지금 다듬는 대상의 현재 값 → (2026-11-20) 배너 아래 한 줄로 옮김 (위 drawBanner)
 
       // 버튼
-      for (const b of st.buttons) ui.button(b);
+      for (const b of st.buttons) ui.imageButton(b);
 
       // 완료 안내
       if (performance.now() < st.toastUntil) {
@@ -327,7 +335,7 @@
       // 손 커서: 가이드 위에 있을 때 펼친 손 / 잡았을 때 쥔 손
       if (st.cursor.visible) ui.drawText(ui.text(st.cursor.grab ? '✊' : '✋'), st.cursor.x, st.cursor.y, s * 0.1);
 
-      Work.drawInventory(ctx);   // 끌고 있는 타래가 맨 위에 보이도록 마지막에
+      Work.drawInventory(ctx);   // 끌고 있는 타래(→ 2026-11-20 흙)가 맨 위에 보이도록 마지막에
     },
 
     // 판정 순서: 버튼 → (인벤토리 위가 아니면) 손잡이·축·고리 → 작업대(재료 끌기 / 물레 돌리기)

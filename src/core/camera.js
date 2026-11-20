@@ -18,7 +18,9 @@ const Camera = (() => {
 
     /**
      * @param {number} aspect  화면 가로/세로
-     * @param {object} cfg     { yaw, pitch, target:[x,y,z], dist, fovy }  — 각도는 라디안
+     * @param {object} cfg     { yaw, pitch, target:[x,y,z], dist, fovy, shiftY? }  — 각도는 라디안
+     *   shiftY (2026-11-20): 화면에 그려지는 장면 전체를 위로 올리는 양 (화면 높이의 비율, 0.1 = 화면 높이의 10%).
+     *   바라보는 각도는 그대로 두고 투영만 옮긴다 (렌즈 이동). 아래쪽에 버튼이 생겨 장면을 위로 올릴 때 쓴다
      */
     function update(aspect, cfg) {
       const { yaw, pitch, target, dist, fovy } = cfg;
@@ -29,6 +31,9 @@ const Camera = (() => {
       // pitch가 ±90°에 닿으면 위쪽 방향(0,1,0)과 시선이 겹쳐 화면이 뒤집힌다 → 각 화면에서 pitch 범위를 제한한다
       mat4.lookAt(view, eye, target, [0, 1, 0]);
       mat4.perspective(proj, fovy, aspect, 0.1, 100);
+      // (2026-11-20) 렌즈 이동: 클립 y 에 (−2·shiftY)·z 를 더하면 w = −z 로 나눈 뒤 화면 y(NDC)가 +2·shiftY 만큼(= 화면 높이의 shiftY) 위로 간다
+      // proj[9] = 3열 2행 (gl-matrix 는 열 우선 배열). 각도·원근은 그대로라 물체 모양은 변하지 않는다
+      if (cfg.shiftY) proj[9] = -2 * cfg.shiftY;
       mat4.multiply(viewProj, proj, view);
       return cam;
     }

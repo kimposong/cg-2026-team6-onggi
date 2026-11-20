@@ -15,6 +15,11 @@
 - 2026-11-19 (Claude Code, 병합): **`sub` 브랜치를 `main` 에 병합** (팀원 JAEWON LEE 작업). 1단계 반죽이 8번 터치 → **리듬 게임**(점수 100점이면 2단계)으로 바뀜. 1안 `stage1-knead.js`(원 크기 맞추기), 2안 `stage1-knead-bar.js`(게이지 바). 두 파일이 같은 장면 이름을 써서 `index.html` 은 1안만 불러온다. 어느 안을 쓸지는 13장.
 - 2026-11-19 (Claude Code, 피그마 플로우): **팀 피그마 화면 설계로 체험 구조가 7단계로 확정** (6-0). 흙 준비 → 반죽 미니게임 → 옹기 빚기 → 문양 그리기 → 잿물 입히기 → 가마에 굽기 → 옹기 카드 저장. 전시관은 시간이 남으면 추가(보류), 시작 화면은 메인 플레이 완성 후 제작, 유물 문양 도장은 만들지 않음. 13장 정리. 코드는 크게 바꾸지 않기로 함 (사용자 결정): 5단계 `stage5-glaze` 는 유약 색 선택만, **6단계 `stage6-gama.js`(가마 굽기) 빈 틀 추가, `stage6-result.js` → `stage7-result.js`**, 4단계 지우기 버튼은 숨김(기능은 유지). 배경·버튼 일러스트는 팀이 제작 중 — 완성되면 `assets/` 에 넣고 적용 (그 전까지 화면 모양은 그대로).
 - 2026-11-20 (Claude Code, 에셋): 팀이 `assets/` 에 올린 그림 34개를 영어 이름으로 바꾸고 폴더로 분류 (8-1-1, `icons/`·`patterns/` 삭제). 4단계 커서는 대나무 도구로 바꾸기로 함. 용량(약 20MB) 줄이기는 나중에. 코드 적용은 아직.
+- 2026-11-20 (Claude Code, 리듬 게임 그림): 1단계 리듬 반죽(`stage1-knead-bar.js`)의 게이지 바·포인터를 **`stage2-gauge.png`·`stage2-gauge-cursor.png`(▼)** 로. 위치는 피그마대로 배너 바로 아래(폭 0.462u, 중심 0.275H, 원래는 반죽 위). **판정 구간 `TIERS.max` 를 그림의 색 띠에 맞춤: 0.12/0.22/0.35 → 0.14/0.44/0.69** (노랑·주황이 넓어져 쉬워짐 — 난이도는 `PERIOD` 로 조절, `max` 만 바꾸면 그림과 어긋남). 판정 글자(Excellent! 등)는 바 아래로. ▼ 폭은 피그마(0.03u)가 너무 작아 0.06u. 그림 전에는 원래 막대.
+- 2026-11-20 (Claude Code, 배너): 1~4단계 위쪽 제목·안내 글자를 **피그마 배너 그림**으로 (`Work.drawBanner`, 8-6). 배너에 없는 정보(물 붓기 단계, 3단계 폭·높이 값, 잘못된 재료 안내)는 배너 아래 작은 한 줄.
+- 2026-11-20 (Claude Code, 물레 위치): 아래 버튼이 생겨 물레·옹기가 낮아 보여서 **장면 전체를 화면 높이의 8% 위로** (`Camera` `shiftY` 렌즈 이동, `Work.SHIFT_Y`). 보는 각도는 그대로. 이어서 배경 소품에 비해 너무 커서 **물레·옹기를 작게** — 처음 0.7 로 했다가 사용자 조정으로 **`Work.SCENE_SCALE = 0.8`** (카메라 거리 ÷ 0.8 — 물레가 화면 폭의 약 86% → 69%). 1~4단계 모두 같은 비율.
+- 2026-11-20 (Claude Code, 슬롯 바·버튼 적용): **피그마대로 화면 아래 슬롯 바 4칸(흙·물·잿물·장작)** 을 1~4단계 공통으로 (작업대 `Work`, 8-6). 재료는 자유롭게 끌고, 잘못된 재료는 안내 문구 + 슬롯으로 튕겨 돌아감 (`onDrop` 이 true 를 돌려줘야 받음). 3단계는 **타래 대신 흙**으로 쌓는다. 글자 버튼 → 그림 버튼 (3단계 되돌리기·다음으로, 4단계 되돌리기·다 그렸어요!, 물레 버튼·굵기 슬라이더 그림), 4단계 새기기 버튼 숨김. 1단계 점수 막대 → 슬롯 아래 「반죽 진행도 N/100」 글자.
+- 2026-11-20 (Claude Code, 배경 적용): 단색 배경(`clearColor`)을 **`background.png` 그림**으로 바꿈 — `core/image.js`(`ImageTex`) 새로 만듦, `ui.drawImage`·`ui.drawCover` 추가, `main.js` 가 매 프레임 3D보다 먼저 배경을 그린다 (8-5, 8-6). 그림이 불러와지기 전·실패 시에는 원래 단색. 피그마 기준으로 이미지 적용 시작. 배경은 높이 기준(`drawFitHeight`). **UI 셰이더 버그 수정:** 둥글기 0 인 사각형(배경·모든 글자)이 투명도 0.5로 그려지던 것을 고침 → 글자도 전보다 진하게 보인다 (10장 표).
 - 2026-11-16 (Claude Code, 2차 수정): 사용자 수정 요청 3가지 — ① 단마다 높이 축(위아래) ② 바닥 반지름 조절부터 시작 ③ 가이드는 단이 끝나면 껐다가 새 단에서 켜기. 이를 위해 **옹기 데이터 형식이 `{ base, radii[6], heights[6] }` 로 바뀜** (`pot.js`, 7-3). 이전 단은 다음 타래를 올리면 굳는다(재조절 불가).
 
 ---
@@ -272,7 +277,7 @@
 5. **뒤로가기 버튼**이 있다.
 
 **동작 (Claude가 정한 세부, 사용자 브라우저 확인 전):**
-- 작업대(`shared/workbench.js`)를 1·2단계와 같이 쓴다: 고정 각도 카메라(pitch 12°, yaw 0), 오른쪽 인벤토리(타래만), 빈 곳을 누른 채 좌우로 흔들면 물레(+바닥판+벽)가 돈다. 이전 4단계의 자유 회전 카메라는 쓰지 않는다.
+- 작업대(`shared/workbench.js`)를 1·2단계와 같이 쓴다: 고정 각도 카메라(pitch 12°, yaw 0), 오른쪽 인벤토리(타래만 → 2026-11-20 아래 슬롯 바 4칸, **흙을 끌어다 쌓는다**), 빈 곳을 누른 채 좌우로 흔들면 물레(+바닥판+벽)가 돈다. 이전 4단계의 자유 회전 카메라는 쓰지 않는다.
 - **카메라 화면 기준 (2026-11-16 최종, 사용자가 정한 규칙 — 그 전의 "바라보는 높이 올리기"·"안내 글 경계로 거리 계산"은 모두 폐기):**
   - **1·2단계 카메라는 처음 값 그대로** (중심 0.65, 거리 `fitDistance(…, 2.2, 2.6)*1.05`). 안내 글 경계 기준으로 거리를 늘리던 시도는 가로로 넓은 창에서 1단계부터 너무 멀어져 폐기.
   - **3단계: 화면 중심은 0.65 고정, 옹기가 기본 높이(1.3)보다 높아지면 그 비율만큼 줌아웃.** `zoom = (yTop − 0.65) / (yTopDefault − 0.65)`, `yTop = top + KNOB_LIFT + 0.06`(손잡이 위 끝), 1보다 작으면 1. 중심이 고정일 때 거리를 이 비율로 늘리면 투영식에서 `dist ∝ h` 라 꼭대기의 화면 위치가 기본 높이일 때와 정확히 같다.
@@ -291,6 +296,7 @@
 - 벽 메시는 `Work.setWall(ctx, base, 올린 단의 radii, 올린 단의 heights, top)` — **아직 안 올린 단은 Catmull-Rom 곡선에 넣지 않는다** (넣으면 맨 윗단 가장자리가 기본값 쪽으로 휜다). 단면의 맨 아래 점은 바닥 반지름. 반지름·높이·top이 바뀐 프레임에만 다시 계산 (`wallDirty`). 뒤로가기로 벽이 줄어드는 동안은 내려놓은 단이 잠깐 포함된다.
 - 새 단의 처음 폭·높이 = 기본 옹기(`Pot` 기본값)의 그 구간 값 → 아무것도 안 만져도 옹기 모양이 된다.
 - **벽 두께 (2026-11-16 생김새 피드백):** 벽은 두 메시로 그린다 — ① 바깥 벽(지금까지와 같음, v = 높이 비율이라 물레 자국·구간 강조가 여기 걸린다) ② **안쪽 면** = `Pot.liningProfile(바깥 단면)`: 윗테(바깥 꼭대기 → 안쪽으로 `WALL_T`) → 안쪽 벽(바깥 단면을 `WALL_T` 만큼 안으로, 위→아래) → 안바닥(`FLOOR_T` 높이, 벽 → 중심). 회전체 법선 규칙 그대로라 윗테·안바닥은 위를, 안쪽 벽은 속을 향한다. 점 수가 항상 `바깥 점 수 + 4` 라 `bufferSubData` 로 갱신. 바닥보다 낮은 점은 안바닥 가장자리 한 점으로 눌러 면적 0. 안쪽 면 색은 `LINING_SHADE = 0.85` 배. 3단계 부분 벽(`Work.setWall`)도 같은 방식이고, 벽 높이가 `FLOOR_T + 0.02` 를 넘은 뒤에만 안쪽 면을 그린다 (그 전엔 윗테가 바닥판과 겹침). 바닥판 덩어리(0.06)는 안바닥(0.08) 아래에 숨는다.
+- (2026-11-20 피그마) 버튼은 그림 버튼 두 개: **「되돌리기」(`btn-undo`) = 아래 뒤로가기 기능 그대로**, **「다음으로」(`btn-next`) = 아래 완료 기능 그대로** (6단 전에는 흐리게, 누르면 힌트). 흙이 아닌 재료·옹기 밖·6단 이후에 놓은 흙은 안내 문구 + 슬롯으로 튕겨 돌아감.
 - **뒤로가기:** 올린 단이 있으면 마지막 단을 내려놓는다 (그 단 폭·높이는 기본값으로 되돌림, 벽이 줄어듦, 가이드 껐다 켬). 올린 단이 없으면 `stage2-base` 로 돌아간다.
 - **완료:** 6단을 다 올렸을 때만 동작 (아니면 힌트). 지금은 콘솔에 `toData()` 출력 + 토스트. 꾸미기 화면이 생기면 `ctx.go('stage4-decorate', ctx.pot_main.toData())`.
 - 판정 순서: 버튼 → (인벤토리 패널 위가 아니면) 높이 손잡이 → 축 판 → 고리 → `Work.down`(재료 끌기 / 물레 돌리기). 손 커서 ✋/✊ 는 가이드 위·드래그 중에만 보인다.
@@ -316,6 +322,7 @@
 - 카메라: 3단계와 같은 `Work.setZoom` 식(꼭대기 = H + 0.16, 3단계 손잡이 높이와 같아 화면이 이어짐), `view.targetMin/Max` 도 같음. 빈 곳 드래그 = `Work.down/move/up` (`hitClay` 는 항상 false → 옹기 밖 판정은 광선이 대신).
 - 커서: `canvas.style.cursor = 'none'` (들어올 때) → 조각칼을 UI 로 그린다: 날(연회색 세로 막대)이 칼끝에서 위로, 손잡이(나무색)가 그 위, 칼끝에 주황 점. 손가락 모드는 👆 이모지를 손톱 끝이 포인터에 오도록 아래로 내려 그림. 둘 다 굵기 미리보기 원(텍스처 px → 둘레 길이 → 화면 px 대략값). 터치는 3단계처럼 손가락보다 `s·0.08` 위가 칼끝.
 - (2026-11-19) **👆 지우기 버튼은 화면에서 숨김** (피그마 플로우에서 지우기를 빼는 방향). 맨 위 상수 `SHOW_FINGER = false` → `layoutUI` 가 숨긴 버튼을 목록에서 빼고 보이는 버튼만 빈칸 없이 쌓는다. 지우기 기능 코드(`st.tool = 'finger'`, 검정 선, 손가락 커서)는 그대로라 `true` 로 바꾸면 돌아온다. 「다 지우기」 버튼은 그대로 (피그마는 「되돌리기」 — 아직 미반영)
+- (2026-11-20 피그마) **UI 그림 적용:** 맨 아래 「되돌리기」(`btn-undo`, = 원래 「다 지우기」, 다시 민무늬로) / 「다 그렸어요!」(`btn-done-drawing`, = 원래 「완료」). 그 위 슬롯 바 4칸(재료는 받지 않음 → 안내 + 튕겨 돌아감). 그 위 한 줄에 굵기 슬라이더(`stage4-slider-track`·`-knob` 그림, 손잡이 중심은 트랙 그림 폭의 `TRACK_IN` 8%~92%) + 오른쪽 물레 버튼(`stage4-btn-spin`, 켜지면 뒤에 주황 원). **새기기 버튼도 숨김**(`SHOW_KNIFE = false`, 도구는 항상 조각칼). 그림을 불러오기 전에는 원래 모양으로 그린다. 판정 순서에 슬라이더 다음 「슬롯 바(재료 끌기)」 추가. 커서(대나무 도구)는 아직 조각칼 그대로.
 - UI: 오른쪽 세로 버튼 3개(🔪 새기기 / 👆 지우기 / 🔄 물레, 켜진 것은 주황), 아래 굵기 슬라이더(트랙·채움·손잡이, 손잡이 안 점이 굵기 미리보기, 3~40 px), 맨 아래 「다 지우기」/「완료」. 완료는 콘솔 출력 + 토스트 (완성하기 화면이 생기면 `ctx.go('stage5-glaze')`).
 - 판정 순서: 아래 버튼 → 도구 버튼 → 슬라이더 → 옹기 표면(획 시작) → 작업대. 휠·핀치 줌, `cancel` 은 3단계와 같음.
 - 3단계 「완료」는 이제 `ctx.go('stage4-decorate')` 로 넘어간다 (`exit` 가 `toData()` 를 넘김).
@@ -382,6 +389,7 @@ onggi/
    ├─ core/                   # 도구만 (엔진 역할). 특정 화면 전용 코드 금지
    │  ├─ program.js           # Program  — 셰이더 컴파일 도우미
    │  ├─ text.js              # TextTex  — 글자 → 텍스처 (11주차 강의 코드)
+   │  ├─ image.js             # ImageTex — 그림 파일 → 텍스처 (2026-11-20, 배경·버튼 그림용)
    │  ├─ mesh.js              # Mesh     — 회전체·기본 도형·Catmull-Rom·GPU 업로드
    │  ├─ camera.js            # Camera   — 궤도 카메라 도구, fitDistance, worldToScreen
    │  ├─ ui.js                # UI       — 캔버스 UI 셰이더 포함, 사각형·원·글자·버튼·판정
@@ -433,7 +441,7 @@ onggi/
 - **`type="module"` 을 쓰지 않는다.** 일반 `<script>` 로 순서대로 로드 → Live Server로도, 파일 직접 열기로도 동작.
 - 파일마다 **즉시 실행 함수(IIFE)로 감싸 객체 하나만 전역으로 내보낸다** (`const Mesh = (() => { ... return {...}; })();`). 최상위 `const` 이름이 겹치면 SyntaxError가 나므로 파일 간 이름 충돌 주의.
 - 화면 파일은 `(() => { Scenes.register(...) })();` 형태로 아무것도 내보내지 않는다.
-- **`index.html` 의 script 순서 = 의존 순서**: gl-matrix → core(program, text, mesh, camera, ui, input) → shared(potShader, wheel) → pot → scenes(scenes.js 먼저, 그다음 각 화면) → main.js
+- **`index.html` 의 script 순서 = 의존 순서**: gl-matrix → core(program, text, image, mesh, camera, ui, input) → shared(potShader, wheel) → pot → scenes(scenes.js 먼저, 그다음 각 화면) → main.js
 - 새 화면 파일을 만들면 `index.html` 에 script 줄을 추가해야 한다.
 
 ### 8-3. 설계 원칙 (사용자와 합의)
@@ -476,9 +484,10 @@ Scenes.register('이름', {
 | `wheel` | `Wheel.create(gl, potShader)` |
 | `pot_main` | `Pot.create(gl, potShader.locs)` — **관람객이 직접 만드는 메인 옹기** |
 | `go(name, data)` | 화면 전환 |
+| `background` | (2026-11-20) `ImageTex.load(gl, './assets/backgrounds/background.png')` — 모든 화면 공통 배경 그림 |
 
 - **`pot_main` 이름 규칙:** 전시관에서 박물관 옹기·다른 관람객 옹기와 구분하려고 사용자가 정한 이름. `Pot` 틀(프리팹)은 그대로 두고 인스턴스만 `pot_main`. 전시관 예: `const pot_museum_1 = Pot.create(gl, PL);`
-- `main.js` 는 매 프레임: `resize`(dpr 최대 2) → clear → `Scenes.call('update')` → `draw` → `ui.begin` → `drawUI` → 우상단 ms/frame (0.5초 평균).
+- `main.js` 는 매 프레임: `resize`(dpr 최대 2) → clear → (2026-11-20) 배경 그림이 준비됐으면 `ui.begin` + `ui.drawFitHeight(background)` (그림 위아래 = 화면 위아래, 모바일 세로 기준. PC 가로 창은 양옆이 단색 — 사용자 결정 2026-11-20) → `Scenes.call('update')` → `draw` → `ui.begin` → `drawUI` → 우상단 ms/frame (0.5초 평균).
 - WebGL2가 없으면 2D 캔버스로 안내 문구 출력 (오류 상태).
 
 ### 8-6. 주요 API
@@ -502,14 +511,16 @@ Scenes.register('이름', {
 - (2026-11-16 무늬) 인스턴스 `decal`(WebGLTexture 또는 null) — `draw` 가 바깥 벽에만 `opt.decal` 로 넘긴다. `outerProfile()` — 지금 형태의 바깥 단면(새 배열). `Pot.radiusAt(outer, y)`
 - (2026-11-16 두께) `Pot.liningProfile(outer, thick = WALL_T, floorY = FLOOR_T)` — 바깥 단면 → 안쪽 면 단면(윗테·안쪽 벽·안바닥), 상수 `WALL_T = 0.06`, `FLOOR_T = 0.08`, `LINING_SHADE = 0.85`. `draw()` 는 바닥 + 바깥 벽 + 안쪽 면 세 메시를 그린다
 
+**`ImageTex`** (core/image.js, 2026-11-20) — `ImageTex.load(gl, url, maxSize = 2048)` → `{ tex, w, h, aspect, ready, failed }` 를 바로 돌려주고 불러오기가 끝나면 채운다 (비동기). 긴 변이 `maxSize` 보다 크면 2D 캔버스로 줄여서 올린다(배경 원본 4005px → 2048px, GPU 메모리 절약). `UNPACK_FLIP_Y` 켜기(글자 텍스처와 같은 규칙 → UI 셰이더로 그대로 그림), 밉맵 생성. **`file://` 로 열면 SecurityError → `failed = true`, 단색 배경으로 계속 돈다** (Live Server 필수). `ImageTex.get(gl, url)` — 같은 경로는 한 번만 불러오는 캐시 (매 프레임 불러도 됨, 버튼·슬롯 그림에 사용).
+
 **`Camera`** (core/camera.js)
-- `createOrbit()` → `cam.update(aspect, { yaw, pitch, target, dist, fovy })` → `{ view, proj, viewProj, eye }`
+- `createOrbit()` → `cam.update(aspect, { yaw, pitch, target, dist, fovy, shiftY? })` — (2026-11-20) `shiftY` = 장면을 화면 높이의 그 비율만큼 위로 (렌즈 이동, `proj[9] = −2·shiftY`, 각도·모양 그대로). 작업대는 `Work` 의 `SHIFT_Y = 0.08` (아래 슬롯 바·버튼 때문에 물레·옹기를 올림 — 3단계 자동 줌아웃 규칙은 그대로 성립) → `{ view, proj, viewProj, eye }`
 - `fitDistance(aspect, fovy, width, height)`, `worldToScreen(viewProj, [x,y,z], W, H)` → `{x, y}` (좌상단 0,0)
 
 **`UI`** (core/ui.js) — `UI.create(gl)` →
 - `begin(W, H)`(깊이 끄기·직교 투영), `rect(x, y, w, h, color, radius)`, `circle(x, y, d, color)`
 - `text(str, opt)` (캐시), `dynText(slot, str)` (값 바뀔 때만 재생성, 이전 텍스처 삭제)
-- `drawText(tex, x, y, hPx, align, maxW, color)`, `button(b)`, `layoutBottomPair(W, H, left, right)` (버튼 높이 s*0.12), `hit(btn, x, y)`
+- `drawText(tex, x, y, hPx, align, maxW, color)`, (2026-11-20) `drawImage(t, x, y, w, h, color?)`(왼쪽 위 기준), `drawCover(t, W, H)`(비율 유지하며 화면 꽉 채움, 넘치는 쪽은 가운데 기준으로 잘림), `drawFitHeight(t, W, H)`(그림 높이 = 화면 높이, 가로 가운데 정렬 — 배경에 사용), `button(b)`, `layoutBottomPair(W, H, left, right)` (버튼 높이 s*0.12), `hit(btn, x, y)`
 - UI 셰이더: 텍스트 텍스처는 `UNPACK_FLIP_Y` 로 올리므로 UV는 `vec2(aPos.x, 1.0 - aPos.y)`
 
 **`PotShader`** (shared/potShader.js) — `PotShader.create(gl)` → `{ locs, begin(cam, lightDir), draw(gpu, model, color, { ridge, activeV, bandHalf, decal }) }`
@@ -526,6 +537,11 @@ Scenes.register('이름', {
 - `FOCUS_DEFAULT = 0.65`(화면 중심 높이, 고정), `setZoom(z)` — 기준 거리에 곱할 자동 줌아웃 배율 (1 미만은 1). `update` 에서 `dt*6` 으로 부드럽게 (2026-11-16, 7-0 카메라 화면 기준). 3단계만 쓰고 `exit` 에서 1로 되돌린다
 - 사용자 줌·상하 이동 (2026-11-16): `view { userZoom, panY, panEnabled, targetMin, targetMax }`, `zoomBy(f)`(0.4~1.6 제한), `panBy(ctx, dyPx)`(픽셀→월드), `resetView()`, `cancel()`(핀치 시작 시 한 손가락 조작 취소). `move` 에서 `panEnabled && !onClay` 이면 세로 드래그가 상하 이동이 된다. 실제 거리 = 자동 줌아웃 거리(보간) × `userZoom`(즉시)
 - `setInventory(ids, open)`, `hint(lines)`(1.7초 주황 안내), `drawGuide(ctx, title, lines, goal)`, `drawInventory(ctx)`
+- (2026-11-20 피그마) **`drawBanner(ctx, n, sub)`** — 위쪽 단계 배너 `banner-stage{n}.png` (n = 피그마 단계 번호, 보이는 폭 0.745u, 세로 0.10H~0.21H) + 그 아래 밝은 알약 위 진한 글자 한 줄 `sub`(값이 바뀌는 글자라 `dynText`). `hint` 가 떠 있으면 `sub` 대신 안내 문구(주황, 굵게). 1~4단계가 `drawGuide` 대신 쓴다 (`drawGuide` 는 1안 파일용으로 남김). 단계 ↔ 배너: `stage1-knead` 흙·물 = 1, 리듬 반죽 = 2 / `stage2-base`·`stage3-stack` = 3 / `stage4-decorate` = 4. 원래 안내 문구는 각 파일에 주석·변수로 남겨 둠. 배너 아래 한 줄: 1단계 물 붓기 때 "이제 물을 흙 위로…", 완성 문구 / 2단계 누른 정도 % / 3단계 폭·높이 % + 몇 단째 / 4단계 없음
+- (2026-11-20 피그마) **인벤토리 = 화면 아래 가로 슬롯 바.** `ALL_ITEMS = ['soil','water','glaze','wood']` (흙·물·잿물·장작, 타래 `coil` 삭제) — 1~4단계 모두 `setInventory(Work.ALL_ITEMS, true)`. 슬롯·끄는 재료는 그림(`ITEMS[id].slot / .item`, 그림 전에는 이모지). `open` 0 이면 슬롯 바가 화면 아래로 내려간다. **`cb.onDrop` 은 받은 재료면 `true`** — 아니면(또는 슬롯 바 위에서 놓거나 핀치로 취소) 재료가 `BACK_TIME` 0.35초 동안 제 칸으로 튕겨 돌아간다. 안내 문구는 화면이 `onDrop` 안에서 `hint` 로.
+- (2026-11-20 비율 조정) **배치는 피그마 9:16 프레임에서 잰 값** (`FIG`): 크기·가로 = 프레임 폭 `u = min(W, H×9/16)`(배경 그림이 차지하는 폭) 비율, 세로 = 화면 높이 H 비율 (배경과 같이 움직임). 슬롯 보이는 폭 0.177u·칸 사이 0.027u·중심 0.826H, 버튼 폭 0.333u·사이 0.052u·중심 0.93H. 4단계 슬라이더 줄 0.706H(트랙 0.104u~0.573u, 손잡이 0.108u, 물레 버튼 중심 0.819u 지름 0.104u). 그림의 투명 여백을 빼고 "보이는 크기"로 맞춘다. 아직 안 쓴 그림의 피그마 값: 배너 가로 0.125u~0.87u·세로 0.10H~0.21H, 반죽 게이지 0.267u~0.729u·중심 0.275H(2026-11-20 적용함), 잿물 색 원 중심 0.302u/0.5u/0.694u·지름 0.135u·0.695H, 반죽 진행도 글자 0.925H. Playwright 로 휴대폰(390×693) 캡처해 피그마와 나란히 비교 확인함.
+- (2026-11-20) `bottomLayout(ctx)` → `{ u, sz, slots, x0, x1, top, bottom, restTop, yBtn, bh }` (버튼 줄 `yBtn` = 맨 아래, 그 위 슬롯 바, `restTop` = 펼친 슬롯 바 윗변). `buttonRow(ctx, [{ id, img, label, dim? }])` → 맨 아래 가운데 정렬 그림 버튼 목록 (폭 = 그림 비율, 높이 s×0.1) → `ui.imageButton(b)` 로 그리고 `ui.hit` 로 판정
+- (2026-11-20) `ui.imageButton(b)` (core/ui.js) — `b.tex` 그림을 그리고 `b.dim` 이면 반투명. 그림 전에는 `ui.button(b)` 글자 버튼
 - 입력: `down(ctx,x,y,type,cb)` / `move` / `up(ctx,x,y,cb)` — `cb = { hitClay, onDrop(id,x,y), onTap(x,y) }`. 누른 채 움직이면 물레 회전, 안 움직이고 떼면 터치. `holding()`(2단계 누르는 중), `inInventory(ctx,x,y)`(2026-11-16 추가)
 - `hitClay(ctx,x,y,R,h)` 화면 사각형 판정, `update(ctx,dt)`, `drawScene(ctx, drawProps)`
 - 흙 덩어리: `setLump(ctx, R, H, p, amp)`(초타원 회전체 + 울퉁불퉁), `drawLump(ctx, wet, k, sq)`
@@ -565,6 +581,7 @@ Scenes.register('이름', {
 | 옹기가 새까맣다 | 법선 부호 반대 `(−dy, dr)` | `core/mesh.js` ① |
 | 안쪽이 바깥처럼 밝다 | 뒷면 법선 미반전 | `shared/potShader.js` `gl_FrontFacing` |
 | 가이드가 안 보인다 | 깊이 테스트 켠 채로 그림 | `stage3-stack.js` `draw` |
+| 배경 그림·글자가 반투명(채도 낮음) | UI 셰이더 둥근 사각형 거리식에서 안쪽 거리 `min(max(q.x,q.y),0)` 누락 → 둥글기 0이면 안쪽 a = 0.5 (2026-11-20 수정) | `core/ui.js` `UI_FS` |
 | 글자가 위아래 뒤집힘 | `UNPACK_FLIP_Y` 와 UI UV 불일치 | `core/text.js`, `core/ui.js` |
 | 휴대폰에서 엉뚱한 곳이 눌림 | CSS → 캔버스 픽셀 변환 누락 | `core/input.js` |
 | 위에서 볼 때 화면이 뒤집힘 | pitch가 90°에 닿음 | (자유 회전 카메라를 다시 쓸 때) `camCfg.pitch` 제한 — 이전 `stage4-shape.js` `CAM.PITCH_MAX` 참고 |
@@ -577,7 +594,8 @@ Scenes.register('이름', {
 3. 물레 회전 속도 2배: `workbench.js` `move` 의 `Math.PI * 1.5`
 4. 선택 색 바꾸기: `stage3-stack.js` `PICK`
 5. 고리 진하기: `stage3-stack.js` `draw` 의 투명도 `0.22 / 0.14 / 0.07`
-8. 타래 올라오는 속도: `stage3-stack.js` `update` 의 `dt * 5` / 1단계 난이도: `stage1-knead.js`·`stage1-knead-bar.js` 맨 위의 `GOAL`(목표 점수)·`TIERS`(판정 구간)·`PERIOD`(주기)
+8. 타래 올라오는 속도: `stage3-stack.js` `update` 의 `dt * 5` / 1단계 난이도: `stage1-knead.js`·`stage1-knead-bar.js` 맨 위의 `GOAL`(목표 점수)·`TIERS`(판정 구간)·`PERIOD`(주기) — (2026-11-20) 2안은 `TIERS.max` 가 게이지 그림 색 띠와 맞물려 있으므로 난이도는 `PERIOD`·`GOAL`·`pts` 로
+10. 물레·옹기 화면 높이: `workbench.js` 의 `SHIFT_Y` (0.08 = 화면 높이의 8% 위로) / 화면 크기: `SCENE_SCALE` (0.8 = 원래의 80%, 카메라 거리 ÷ 이 값)
 9. 벽 두께·바닥 두께: `pot.js` 의 `WALL_T`, `FLOOR_T` (안쪽 면 밝기는 `LINING_SHADE`)
 6. 흙 색: `PotShader.CLAY`
 7. 물레 자국 촘촘하게: `potShader.js` 의 `vUV.y * 180.0`

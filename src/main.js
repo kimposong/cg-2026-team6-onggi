@@ -23,6 +23,8 @@
     // Pot.create 는 옹기를 만드는 공통 틀이라 전시실에서도 같은 틀로 여러 개를 만든다
     pot_main: Pot.create(gl, potShader.locs),
     go: (name, data) => Scenes.go(ctx, name, data),
+    // (2026-11-20) 전체 배경 그림 — 피그마의 한옥 작업장. 불러오는 동안·실패하면 아래 clearColor 단색이 대신 보인다
+    background: ImageTex.load(gl, './assets/backgrounds/background.png'),
   };
 
   const perf = { acc: 0, count: 0, shown: '' };
@@ -59,6 +61,13 @@
     resize();
     gl.clearColor(0.165, 0.13, 0.11, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    // (2026-11-20) 배경 그림을 3D보다 먼저 화면 가득 그린다. ui.begin 이 깊이 테스트를 끄므로 깊이 버퍼에 남지 않고,
+    // 이어지는 3D(potShader.begin)가 깊이 테스트를 다시 켠다
+    if (ctx.background.ready) {
+      ctx.ui.begin(ctx.W, ctx.H);
+      // 모바일 세로 화면에서 그림이 꽉 차는 것이 기준 → 그림의 위아래를 화면 위아래에 맞춘다 (PC 가로 창은 양옆이 단색)
+      ctx.ui.drawFitHeight(ctx.background, ctx.W, ctx.H);
+    }
 
     Scenes.call('update', ctx, dt);
     Scenes.call('draw', ctx);
