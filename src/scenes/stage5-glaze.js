@@ -7,7 +7,7 @@
 //   작업대(shared/workbench.js)의 카메라·물레 돌리기·줌·상하 이동은 3·4단계와 같다.
 //   아직 안 만든 것: 색 고르기, 잿물 그릇을 옹기로 끌어 바르기, 옹기 색 바꾸기 (다음 작업)
 // (2026-11-20 A안 「담그기」, 사용자 결정) 색 원을 누르면 FILL_TIME 동안 유약이 아래에서 위로 차오르며 옹기 전체가 그 색이 된다.
-//   차오르는 동안 물레가 천천히 돈다. 다른 색을 누르면 이전 유약 위로 새 색이 다시 차오른다.
+//   차오르는 동안 물레가 천천히 돈다(→ 2026-11-20 사용자 피드백으로 뺌). 다른 색을 누르면 이전 유약 위로 새 색이 다시 차오른다.
 //   다 발라야 「가마로 가기」가 진해진다. 그리는 쪽은 Pot.glaze → PotShader (uGlazeColor·uGlazeTop·uGlazeUnder)
 
 (() => {
@@ -26,7 +26,7 @@
   const FIG = { circleX: [0.302, 0.5, 0.694], circleImg: 0.147, circleY: 0.695 };
 
   const FILL_TIME = 1.6;                  // (2026-11-20) 유약이 바닥에서 꼭대기까지 차오르는 시간(초)
-  const FILL_SPIN = 0.9;                  // 차오르는 동안 물레가 도는 속도 (라디안/초)
+  const FILL_SPIN = 0.9;                  // 차오르는 동안 물레가 도는 속도 (라디안/초) — (2026-11-20) 사용자 피드백으로 쓰지 않음 (자동 회전은 4단계만)
   const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
   GLAZES.forEach((g) => { g.rgb = hexToRgb(g.hex); });
 
@@ -90,9 +90,10 @@
       Work.view.targetMax = Math.max(Work.FOCUS_DEFAULT, yTop);
       // (2026-11-20) 유약 차오르기: level 0 → 1. 차오르는 동안 물레가 천천히 돌아 둘레 전체가 발리는 모습이 보인다
       const gz = pot.glaze;
+      // → (2026-11-20 사용자 피드백) 옹기가 저절로 도는 움직임은 4단계에서만. 5단계는 차오르는 동안 돌리지 않는다 (FILL_SPIN 안 씀)
+      //   손으로 빈 곳을 끌어 물레를 돌리는 것은 1~3단계처럼 그대로 된다
       if (gz.hex && gz.level < 1) {
         gz.level = Math.min(1, gz.level + dt / FILL_TIME);
-        Work.S.angle += dt * FILL_SPIN * Math.sin(Math.PI * gz.level + 0.3);   // 시작·끝은 느리게
         if (gz.level >= 1) gz.under = null;                                     // 다 덮었으면 이전 색은 필요 없다
       }
       st.pop *= Math.exp(-dt * 6);

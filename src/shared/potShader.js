@@ -62,16 +62,37 @@ const PotShader = (() => {
     float gz = max(g, under);                            // 유약이 있는 정도 (새 것이든 이전 것이든)
     if (uRidge < -0.5) gz = 0.0;                         // 물레에는 바르지 않는다
 
+    // (2026-11-20 사용자 피드백) 새긴 홈(cv)에는 유약 색이 입혀지지 않고, 유약과 상관없이 늘 같은 밝은 흙색(GROOVE)이 드러난다
+    // → 어떤 잿물 색을 골라도 4단계에서 그린 그림이 또렷하게 보인다 (유약 위에 손으로 그려 흙빛이 드러나는 옹기 그림과 비슷)
+    float cv = (uUseDecal > 0.5 && gl_FrontFacing) ? texture(uDecal, vUV).r : 0.0;
+    // (2026-11-20 고증) 옹기는 잿물을 바른 뒤 마르기 전에 손가락으로 그린다("환을 친다") → 그린 자리는 유약이 없어 구운 맨흙이 드러난다
+    //   (국가유산청 옹기장 자료). 그래서 홈 색 = 유약과 상관없는 구운 맨흙 색 #B07A50 (붉은 기 도는 황토 갈색), 광택 없음.
+    //   이전 값 (0.82, 0.64, 0.46) 은 구운 흙치고 너무 밝은 모래색이라 바꿈
+    const vec3 GROOVE = vec3(0.69, 0.48, 0.31);
+    // 가장자리: 손가락에 밀린 잿물이 홈 가장자리에 조금 남는다 → 가장자리만 유약 색으로 물든다 (그래서 색마다 미묘하게 달라 보임).
+    // 주변 4점(3px 거리)의 최솟값 = 안쪽 정도. 홈 안쪽 깊숙한 곳은 1, 가장자리는 0 에 가깝다
+    float cvIn = cv;
+    if (cv > 0.0) {
+      vec2 du = vec2(3.0 / 1024.0, 0.0), dv = vec2(0.0, 3.0 / 512.0);
+      cvIn = min(min(texture(uDecal, vUV + du).r, texture(uDecal, vUV - du).r),
+                 min(texture(uDecal, vUV + dv).r, texture(uDecal, vUV - dv).r));
+    }
+    float edge = cv * (1.0 - cvIn);
+    float gzSurf = gz * (1.0 - cv);                      // 홈을 뺀 나머지만 유약 표면
+
     vec3 base = uBaseColor;
-    float ridge = max(uRidge, 0.0) * (1.0 - 0.6 * gz);   // (2026-11-20) 유약이 덮으면 물레 자국·얼룩이 옅어진다
+    float ridge = max(uRidge, 0.0) * (1.0 - 0.6 * gzSurf); // (2026-11-20) 유약이 덮으면 물레 자국·얼룩이 옅어진다
     base *= 1.0 - ridge * 0.06 * (0.5 + 0.5 * sin(vUV.y * 180.0));                       // 물레 자국(가로 줄)
     base *= 1.0 - ridge * 0.04 * (0.5 + 0.5 * sin(vUV.x * 6.2831 * 5.0 + vUV.y * 9.0));  // 흙 얼룩
     // 물레(uRidge = -1): 둘레를 12칸으로 나눈 나무판 무늬. 옹기는 둥글어서 돌려도 똑같아 보이므로,
     // 이 무늬가 있어야 좌우로 돌렸다는 것이 눈에 보인다
     if (uRidge < -0.5) base *= 0.82 + 0.18 * step(0.5, fract(vUV.x * 12.0));
-    base = mix(base, glazeCol, gz);
+    base = mix(base, glazeCol, gzSurf);
+    // 유약을 바른 곳의 홈 = 구운 맨흙 색, 가장자리만 유약 색으로 물듦 (안 바른 곳의 홈은 원래대로)
+    base = mix(base, mix(GROOVE, glazeCol, 0.55 * edge), cv * gz);
     // 유약 광택: 하이라이트를 좁고 밝게 (Phong 지수 24 → 70) — 흙은 거칠어 넓고 흐리게, 유약은 매끈해 작고 또렷하게 (6주차 재질)
-    spec = mix(spec, pow(max(dot(N, Hh), 0.0), 70.0) * 0.55, gz);
+    spec = mix(spec, pow(max(dot(N, Hh), 0.0), 70.0) * 0.55, gzSurf);
+    spec *= 1.0 - 0.85 * cv * gz;                        // (2026-11-20) 유약 없는 홈은 무광 — 같은 밝기라도 반들거림 차이로 그림이 구분된다
     // 막 차오르는 경계선은 유약이 두껍게 맺혀 살짝 진하게
     float rim = uGlazeTop > 0.0 ? 1.0 - smoothstep(0.0, 0.03, abs(vWorldPos.y - (uGlazeTop + wob))) : 0.0;
     base *= 1.0 - 0.18 * rim * g;
@@ -80,10 +101,12 @@ const PotShader = (() => {
 
     // 새긴 무늬: 홈(흰 곳)은 어둡게. 홈의 아래 가장자리는 위에서 오는 빛을 받아 밝고, 위 가장자리는 그늘이 진다 (얕은 홈의 음영을 흉내)
     if (uUseDecal > 0.5 && gl_FrontFacing) {
-      float cv = texture(uDecal, vUV).r;
+      // cv 는 위에서 읽었다 (2026-11-20: 유약 계산에도 쓰므로 앞으로 옮김)
       float below = texture(uDecal, vUV - vec2(0.0, 2.0 / 512.0)).r;
       float above = texture(uDecal, vUV + vec2(0.0, 2.0 / 512.0)).r;
-      col *= 1.0 - (0.45 + 0.2 * gz) * cv;   // (2026-11-20) 유약은 홈에 고여 더 진해진다 → 무늬가 도드라짐
+      // (2026-11-20) 유약은 홈에 고여 더 진해진다 → 무늬가 도드라짐 (0.45 + 0.2·gz)
+      // → (2026-11-20 사용자 피드백) 홈에는 밝은 흙색이 드러나므로, 유약 바른 곳의 홈은 덜 어둡게 해서 밝은 색이 살게 (0.45 → 0.15)
+      col *= 1.0 - mix(0.45, 0.15, gz) * cv;
       col += vec3(0.22) * max(cv - below, 0.0) * (0.4 + 0.6 * diff);
       col *= 1.0 - 0.35 * max(cv - above, 0.0);
     }
