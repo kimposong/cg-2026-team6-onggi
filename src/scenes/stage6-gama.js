@@ -46,7 +46,7 @@
     baseY: 0, cx: 0,         // 옹기 바닥 가운데의 화면 위치
     drag: false, gx: 0, gy: 0, glide: false, moved: false,
     t: 0, hintT: 0, tempShow: START_LEVEL,
-    level: START_LEVEL, hold: DROP_TIME, progress: 0, fireShow: 0.5, flare: 0, warn: 0,
+    level: START_LEVEL, hold: DROP_TIME, progress: 0, fireShow: 0.5, lit: 0, flare: 0, warn: 0,
     result: null, endT: 0, outT: 0, wood: null, buttons: [], alpha: 1, fails: 0,
   };
   const cam = { view: mat4.create(), proj: mat4.create(), eye: [0, 0, 0] };
@@ -296,7 +296,7 @@
 
   /* ---------- 장면 흐름 ---------- */
   function resetGame() {
-    Object.assign(st, { tempShow: START_LEVEL, level: START_LEVEL, hold: DROP_TIME, progress: 0, fireShow: FIRE_SCALE[START_LEVEL - 1], flare: 0, warn: 0, resT: 0, result: null, endT: 0, outT: 0, wood: null });
+    Object.assign(st, { tempShow: START_LEVEL, level: START_LEVEL, hold: DROP_TIME, progress: 0, fireShow: FIRE_SCALE[START_LEVEL - 1], lit: 0, flare: 0, warn: 0, resT: 0, result: null, endT: 0, outT: 0, wood: null });
   }
   function enterKiln(ctx) {            // 옹기가 가마 속으로 완전히 들어갔다 → 불 때기 시작
     st.phase = 'fire'; st.drag = false; st.glide = false; resetGame();
@@ -391,6 +391,10 @@
       if (st.phase === 'ending' || st.phase === 'out' || st.phase === 'done') target = st.result === 'cold' ? 0.1 : st.result === 'burnt' ? 1.45 : 0.78;
       if (st.phase === 'carry') target = 0.18;
       st.fireShow += (target - st.fireShow) * Math.min(1, dt * 5);
+      // 가마 불빛은 옹기가 가마 속에서 구워지는 동안에만 켜진다 (넣기 전·나온 뒤에는 꺼짐)
+      const litT = st.phase === 'fire' ? 1 : 0;
+      st.lit += (litT - st.lit) * Math.min(1, dt * (litT ? 4 : 3));
+      if (!litT && st.lit < 0.01) st.lit = 0;
 
       // 버튼
       if (st.phase === 'fire') st.buttons = Work.buttonRow(ctx, [{ id: 'wood', img: './assets/ui/buttons/btn-add-firewood.png', label: '장작 넣기' }]);
@@ -424,6 +428,7 @@
         else if (st.result === 'cold') { fx.dull = e; fx.heat = 0; }
         else { fx.heat = (1 - o) * 0.9 + 0.1 * (1 - o); fx.shine = o * 0.6; }
       }
+      fx.heat *= st.lit;                                   // 불빛이 꺼져 있으면 옹기도 달아오르지 않는다
       drawPot(ctx, st.cx, st.baseY, st.alpha, fx);
     },
 
@@ -437,7 +442,7 @@
       if (st.result === 'cold' && st.phase !== 'fire') glow = 0.03;
       if (st.result === 'burnt' && st.phase !== 'fire') glow = 1;
       if (st.result === 'good' && st.phase !== 'fire') glow = 0.55;
-      glow = (glow + 0.25 * st.flare) * flick;
+      glow = (glow + 0.25 * st.flare) * flick * st.lit;
       const col = st.result === 'burnt' && st.phase !== 'fire' ? [1, 0.3, 0.1] : [1, 0.55, 0.15];
       const ax = g.ox - g.ow / 2, ar = g.ow / 2;                   // 아치: 위쪽 반원 + 아래쪽 직사각형
       ui.circle(g.ox, g.floor - g.oh * 0.5, g.ow * (2.3 + 0.3 * glow), [...col, 0.05 * glow]);
@@ -447,9 +452,9 @@
 
       /* --- 불길 (아래 가운데에서 단계에 따라 커진다) --- */
       const ft = ImageTex.get(gl, FIRE_IMG);
-      if (ft.ready) {
+      if (ft.ready && st.lit > 0.02) {
         const fw = g.ow * st.fireShow * (1 + 0.2 * st.flare) * (1 + 0.04 * Math.sin(st.t * 13)), fh = fw / ft.aspect;
-        ui.drawImage(ft, g.ox - fw / 2, g.floor - fh * 0.96, fw, fh, st.result === 'cold' && st.phase !== 'fire' ? [0.6, 0.8, 1, 0.7] : [1, 1, 1, st.result === 'cold' && st.phase !== 'fire' ? 0.7 : 1]);
+        ui.drawImage(ft, g.ox - fw / 2, g.floor - fh * 0.96, fw, fh, st.result === 'cold' && st.phase !== 'fire' ? [0.6, 0.8, 1, 0.7 * st.lit] : [1, 1, 1, st.lit]);
       }
       // 장작이 입구로 날아가는 연출
       if (st.wood) {
