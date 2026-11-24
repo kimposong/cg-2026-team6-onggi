@@ -24,6 +24,7 @@
 - 2026-11-20 (Claude Code, 물레 위치): 아래 버튼이 생겨 물레·옹기가 낮아 보여서 **장면 전체를 화면 높이의 8% 위로** (`Camera` `shiftY` 렌즈 이동, `Work.SHIFT_Y`). 보는 각도는 그대로. 이어서 배경 소품에 비해 너무 커서 **물레·옹기를 작게** — 처음 0.7 로 했다가 사용자 조정으로 **`Work.SCENE_SCALE = 0.8`** (카메라 거리 ÷ 0.8 — 물레가 화면 폭의 약 86% → 69%). 1~4단계 모두 같은 비율.
 - 2026-11-20 (Claude Code, 슬롯 바·버튼 적용): **피그마대로 화면 아래 슬롯 바 4칸(흙·물·잿물·장작)** 을 1~4단계 공통으로 (작업대 `Work`, 8-6). 재료는 자유롭게 끌고, 잘못된 재료는 안내 문구 + 슬롯으로 튕겨 돌아감 (`onDrop` 이 true 를 돌려줘야 받음). 3단계는 **타래 대신 흙**으로 쌓는다. 글자 버튼 → 그림 버튼 (3단계 되돌리기·다음으로, 4단계 되돌리기·다 그렸어요!, 물레 버튼·굵기 슬라이더 그림), 4단계 새기기 버튼 숨김. 1단계 점수 막대 → 슬롯 아래 「반죽 진행도 N/100」 글자.
 - 2026-11-20 (Claude Code, 배경 적용): 단색 배경(`clearColor`)을 **`background.png` 그림**으로 바꿈 — `core/image.js`(`ImageTex`) 새로 만듦, `ui.drawImage`·`ui.drawCover` 추가, `main.js` 가 매 프레임 3D보다 먼저 배경을 그린다 (8-5, 8-6). 그림이 불러와지기 전·실패 시에는 원래 단색. 피그마 기준으로 이미지 적용 시작. 배경은 높이 기준(`drawFitHeight`). **UI 셰이더 버그 수정:** 둥글기 0 인 사각형(배경·모든 글자)이 투명도 0.5로 그려지던 것을 고침 → 글자도 전보다 진하게 보인다 (10장 표).
+- 2026-11-24 (Claude Code, 휴대폰 테스트): 모바일 크롬에서 주소창·아래 탭 때문에 아래 버튼이 안 보이던 문제 → **캔버스 높이 `100vh` → `100dvh`** (`index.html` CSS, 옛 브라우저는 100vh 그대로). 바는 그대로 보이고 캔버스가 보이는 영역에 맞춰진다 (9장, 8-7). 전체 화면 API(안드로이드만 바 숨김)는 적용 안 함.
 - 2026-11-16 (Claude Code, 2차 수정): 사용자 수정 요청 3가지 — ① 단마다 높이 축(위아래) ② 바닥 반지름 조절부터 시작 ③ 가이드는 단이 끝나면 껐다가 새 단에서 켜기. 이를 위해 **옹기 데이터 형식이 `{ base, radii[6], heights[6] }` 로 바뀜** (`pot.js`, 7-3). 이전 단은 다음 타래를 올리면 굳는다(재조절 불가).
 
 ---
@@ -591,12 +592,13 @@ Scenes.register('이름', {
 - (2026-11-16 추가) `wheel(x, y, deltaY)` — 마우스 휠, 페이지 스크롤 막음(`passive: false`). `pinch(factor, cx, cy)` — 두 손가락 사이 거리가 직전보다 `factor` 배. 두 번째 손가락이 닿으면 `cancel()` 을 보내고 한 손가락 조작을 끊는다. `main.js` 가 `Scenes.call('wheel' | 'pinch' | 'cancel', …)` 로 전달 (화면 약속에 선택 함수로 추가)
 
 ### 8-7. index.html 의 CSS (허용된 최소)
-`html, body { margin:0; height:100%; overflow:hidden; background:#2a211c; }`, `canvas { width:100vw; height:100vh; touch-action:none; user-select:none; -webkit-touch-callout:none; }` — `touch-action: none` 은 드래그 중 스크롤·확대 방지용으로 필수. viewport meta에 `user-scalable=no`.
+`html, body { margin:0; height:100%; overflow:hidden; background:#2a211c; }`, `canvas { width:100vw; height:100vh; height:100dvh; touch-action:none; user-select:none; -webkit-touch-callout:none; }` — `touch-action: none` 은 드래그 중 스크롤·확대 방지용으로 필수. viewport meta에 `user-scalable=no`.
 
 ---
 
 ## 9. 휴대폰 대응 (결정·주의 사항)
 - **세로 화면 기준.** 버튼 위치·크기는 픽셀 고정이 아니라 화면 비율로.
+- (2026-11-24) **캔버스 높이는 `100dvh`** — 모바일 크롬·사파리의 `100vh` 는 주소창·아래 탭이 숨었을 때의 높이라, 바가 보이면 아래 버튼 줄이 탭 뒤로 잘린다. 이 페이지는 `overflow: hidden`·`touch-action: none` 으로 스크롤을 막아(드래그 조작에 필수) 바가 저절로 숨지 않는다. `dvh` 로 보이는 영역에 맞추고, `main.js` `resize()` 가 매 프레임 `clientHeight` 를 읽으므로 레이아웃(H 비율)이 따라온다. 바를 아예 없애려면 첫 터치에 `requestFullscreen` (안드로이드만, 아이폰은 미지원) — 지금은 안 씀.
 - 고해상도 좌표 변환(dpr) 누락이 가장 흔한 버그 → `core/input.js` 에서 처리 중.
 - 성능 기준은 **팀원 휴대폰 중 가장 오래된 기종**. 텍스처는 512~1024면 충분.
 - 카메라·마이크를 쓰지 않으므로 개인정보 요건 부담 거의 없음.

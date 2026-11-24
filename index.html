@@ -10,7 +10,10 @@
     /* 캔버스를 전체 화면으로 만드는 것 외에는 CSS를 쓰지 않는다 */
     html, body { margin: 0; height: 100%; overflow: hidden; background: #2a211c; }
     /* touch-action: none — 드래그 중 화면이 스크롤·확대되지 않게 막는다 (휴대폰 터치 조작에 필수) */
-    canvas { display: block; width: 100vw; height: 100vh; touch-action: none;
+    /* (2026-11-24) 높이 100vh → 100dvh: 모바일 크롬의 100vh 는 주소창·아래 탭이 숨었을 때의 높이라서
+       바가 보이는 동안 캔버스 아래(버튼 줄·슬롯 바)가 탭 뒤로 잘렸다. dvh 는 지금 보이는 영역의 높이.
+       dvh 를 모르는 옛 브라우저는 뒤 줄을 무시하고 앞 줄의 100vh 를 쓴다 */
+    canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none;
              user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   </style>
 </head>
