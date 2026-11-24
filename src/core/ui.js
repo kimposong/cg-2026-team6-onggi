@@ -56,18 +56,20 @@ const UI = (() => {
     // 바뀌지 않는 글자는 한 번만 만들어 재사용 (매 프레임 만들면 프레임 시간이 나빠진다)
     const cache = new Map();
     function text(str, opt = {}) {
-      const key = `${str}|${opt.weight || 700}`;
+      // const key = `${str}|${opt.weight || 700}`;
+      const key = `${str}|${opt.weight || 700}|${opt.family || ''}`;   // (2026-11-24) 폰트가 다르면 다른 텍스처
       if (!cache.has(key)) cache.set(key, TextTex.makeTextTexture(gl, str, { fontSize: 72, ...opt }));
       return cache.get(key);
     }
     // 자주 바뀌는 글자(수치)는 칸마다 하나만 두고, 값이 바뀔 때만 다시 만든다. 이전 텍스처는 지운다 (메모리 증가 방지)
     const slots = {};
-    function dynText(slot, str) {
-      const s = slots[slot];
-      if (s && s.str === str) return s.t;
+    // (2026-11-24) opt 추가 (폰트 family·weight). 폰트가 바뀌어도 다시 만든다 (폰트를 다 받은 순간 기본 폰트 → 새 폰트)
+    function dynText(slot, str, opt = {}) {
+      const s = slots[slot], key = `${str}|${opt.weight || 700}|${opt.family || ''}`;
+      if (s && s.key === key) return s.t;
       if (s) gl.deleteTexture(s.t.tex);
-      const t = TextTex.makeTextTexture(gl, str, { fontSize: 56 });
-      slots[slot] = { str, t };
+      const t = TextTex.makeTextTexture(gl, str, { fontSize: 56, ...opt });
+      slots[slot] = { key, t };
       return t;
     }
 

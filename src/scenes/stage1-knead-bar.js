@@ -85,6 +85,7 @@
       Object.assign(st, { sub: 0, score: 0, combo: 0, best: 0, t: 0, appear: 0, wetT: 0, sq: 0, pulse: 0, pops: [], doneAt: 0, left: false });
       Object.assign(Work.S.clay, { wet: 0, smooth: 0 });
       Work.setInventory(Work.ALL_ITEMS, true);          // 1단계 인벤토리: 흙과 물 두 개 → (2026-11-20 피그마) 아래 슬롯 바 4칸 (흙·물·잿물·장작)
+      Work.setActiveItems(['soil', 'water']);           // (2026-11-24) 1단계는 흙·물만 쓴다 → 잿물·장작 칸은 반투명
       Work.inv.open = 0;                                // 처음에 펼쳐지는 모습
     },
 

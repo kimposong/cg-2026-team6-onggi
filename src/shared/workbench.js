@@ -22,6 +22,18 @@ const Work = (() => {
    * 화면 중심이 고정일 때 거리를 (꼭대기 높이 − 중심) 비율로 늘리면 꼭대기의 화면 위치가 정확히 그대로 유지된다 (투영식에서 dist ∝ h) */
   let zoom = 1;
   function setZoom(z) { zoom = Math.max(1, z); }
+  /* (2026-11-24 사용자 요청) 3·4단계는 물레·옹기를 아래로 내린다: 옹기 중심(바라보는 높이)과 화면 맨 아래 사이 거리를 40% 줄인다.
+   * 바라보는 점은 화면 위에서 (0.5 − shiftY)·H 에 찍히므로 맨 아래까지 거리는 (0.5 + shiftY)·H.
+   * 이것을 0.6 배로 → shiftY' = shiftY − 0.4·(0.5 + shiftY) = 0.08 − 0.232 = −0.152 (렌즈 이동이라 각도·크기·줌 규칙은 그대로)
+   * → (2026-11-24 사용자 조정) 40% 는 너무 낮아서 20% 로: 0.08 − 0.2·0.58 = −0.036
+   * → (2026-11-24 사용자 조정) 비율 대신 "3단계에서 물레 바닥이 아래 버튼(슬롯 바)보다 조금 위" — 고정값으로 계산해 둔다 (매 프레임 계산 안 함)
+   *   휴대폰 9:16 기준, 기본 옹기(줌 1): 카메라 거리 7.05, 물레 아랫면 앞쪽 가장자리 (0, −0.1, 1)은 렌즈 이동 0 일 때 화면 위에서 0.708H.
+   *   슬롯 바 윗변 0.776H 보다 조금(s×0.015 ≈ 0.008H) 위 = 0.768H 에 오려면 shiftY = 0.708 − 0.768 = −0.06. 4단계도 같은 값을 쓴다 */
+  // const LOWER_RATIO = 0.2;
+  // const SHIFT_Y_LOW = SHIFT_Y - LOWER_RATIO * (0.5 + SHIFT_Y);
+  const SHIFT_Y_LOW = -0.06;
+  let shiftGoal = SHIFT_Y;          // 화면이 정하는 목표 — update 에서 camCfg.shiftY 가 부드럽게 따라간다 (단계가 바뀔 때 툭 튀지 않게)
+  function setShift(v) { shiftGoal = v; }
   let distReady = false;            // 처음 한 번은 보간 없이 바로 그 거리에서 시작
   let autoDist = 4;                 // 기준 거리 × 자동 줌아웃을 부드럽게 따라가는 값 (여기에 사용자 줌을 곱해 실제 거리가 된다)
 
@@ -66,6 +78,12 @@ const Work = (() => {
 
   /* ---------- 인벤토리 ---------- */
   function setInventory(ids, open) { inv.items = ids; inv.target = open ? 1 : 0; }
+  /* (2026-11-24 사용자 요청) 이 단계에서 쓰는 재료 — 목록에 없는 칸은 반투명하게 그린다 (끌기는 그대로 되고, 화면이 안내 + 튕겨 돌려보낸다).
+   * null = 모두 진하게. 각 화면이 enter 에서 정한다 */
+  let activeItems = null;
+  const UNUSED_ALPHA = 0.35;        // 안 쓰는 재료 칸의 투명도
+  function setActiveItems(ids) { activeItems = ids; }
+  const isActive = (id) => !activeItems || activeItems.includes(id);
   function hint(lines) { hintLines = Array.isArray(lines) ? lines : [lines]; hintUntil = performance.now() + 1700; }
 
   /* (2026-11-20 피그마) 화면 아래부터 쌓는다: 맨 아래 버튼 줄(yBtn) → 그 위 슬롯 바(가로 가운데 정렬).
@@ -115,12 +133,15 @@ const Work = (() => {
       L.slots.forEach((sl) => {
         // 지금 끌고 있거나 돌아오는 중인 재료의 칸은 살짝 흐리게 (재료가 칸에서 빠져나간 느낌)
         const away = g.item === sl.id || (back && back.id === sl.id);
+        // (2026-11-24) 이 단계에서 안 쓰는 재료는 반투명 (UNUSED_ALPHA). 끌고 있는 칸의 흐림(0.6)과 곱한다
+        const a = (away ? 0.6 : 1) * (isActive(sl.id) ? 1 : UNUSED_ALPHA);
         const t = ImageTex.get(ctx.gl, ITEMS[sl.id].slot);
-        if (t.ready) ui.drawImage(t, sl.x - L.sz / 2, sl.y - L.sz / 2, L.sz, L.sz, away ? [1, 1, 1, 0.6] : [1, 1, 1, 1]);
+        // if (t.ready) ui.drawImage(t, sl.x - L.sz / 2, sl.y - L.sz / 2, L.sz, L.sz, away ? [1, 1, 1, 0.6] : [1, 1, 1, 1]);
+        if (t.ready) ui.drawImage(t, sl.x - L.sz / 2, sl.y - L.sz / 2, L.sz, L.sz, [1, 1, 1, a]);
         else {
-          ui.rect(sl.x - L.sz / 2, sl.y - L.sz / 2, L.sz, L.sz, [1, 1, 1, 0.14], s * 0.02);
-          ui.drawText(ui.text(ITEMS[sl.id].emoji), sl.x, sl.y - L.sz * 0.12, L.sz * 0.5);
-          ui.drawText(ui.text(ITEMS[sl.id].name), sl.x, sl.y + L.sz * 0.33, L.sz * 0.2, 'center', L.sz * 0.9);
+          ui.rect(sl.x - L.sz / 2, sl.y - L.sz / 2, L.sz, L.sz, [1, 1, 1, 0.14 * a], s * 0.02);
+          ui.drawText(ui.text(ITEMS[sl.id].emoji), sl.x, sl.y - L.sz * 0.12, L.sz * 0.5, 'center', Infinity, [1, 1, 1, a]);
+          ui.drawText(ui.text(ITEMS[sl.id].name), sl.x, sl.y + L.sz * 0.33, L.sz * 0.2, 'center', L.sz * 0.9, [1, 1, 1, a]);
         }
       });
     }
@@ -173,6 +194,20 @@ const Work = (() => {
    * 배너 그림은 보이는 부분이 폭의 98.1%, 세로 중심이 그림 높이의 49.1% 지점.
    * sub = 배너만으로 알 수 없는 정보(물 붓기 단계, 지금 값 등) 한 줄. hint(잘못된 재료 안내)가 있으면 그것을 먼저 보여 준다 */
   const BANNER = { visW: 0.745, visTop: 0.10, visBot: 0.21, visFrac: 0.981, visMid: 0.491 };
+  // const SUB_TEXT_H = 0.055;      // (2026-11-24) 배너 아래 설명문 글자 높이 = 프레임 폭 u × 이 값 (이전 0.045, 접근성 기준 화면 높이 3% 이상)
+  const SUB_TEXT_H = 0.064;         // (2026-11-24 사용자 조정) 폭 390px 휴대폰에서 약 25px (25 ÷ 390), 화면 높이의 약 3.6%
+  const SUB_MAX_W = 0.86;           // 설명문 한 줄 최대 폭 = 프레임 폭 u × 이 값 — 넘으면 줄바꿈 (2026-11-24)
+  /* (2026-11-24) 줄바꿈 결과 캐시: 최대 폭과 글자 높이가 둘 다 u 비율이라 "한 줄 최대 가로세로비"(0.86 ÷ 0.064)는 화면 크기와 상관없이 같다
+   * → 같은 문장·폰트면 결과도 같으므로 한 번만 잰다. 값이 바뀌는 문장(폭 % 등)이 계속 쌓이지 않게 200개가 넘으면 비운다 (메모리 증가 방지) */
+  const wrapCache = new Map();
+  function wrapLine(str, fontSize, fo) {
+    const key = `${fontSize}|${fo.family || ''}|${str}`;
+    if (!wrapCache.has(key)) {
+      if (wrapCache.size > 200) wrapCache.clear();
+      wrapCache.set(key, TextTex.wrap(str, SUB_MAX_W / SUB_TEXT_H, { fontSize, ...fo }));
+    }
+    return wrapCache.get(key);
+  }
   function drawBanner(ctx, n, sub) {
     const { W, H, ui } = ctx, u = frameUnit(ctx);
     const t = ImageTex.get(ctx.gl, `./assets/ui/banners/banner-stage${n}.png`);
@@ -186,14 +221,38 @@ const Work = (() => {
     // 배너 아래 한 줄(또는 안내 두 줄): 밝은 바탕 알약 위에 진한 글자 (배경 벽 위에서도 잘 읽히게)
     const hinting = performance.now() < hintUntil;
     const lines = hinting ? hintLines : (sub ? [sub] : []);
-    let y = H * BANNER.visBot + u * 0.055;
-    for (const l of lines) {
+    // let y = H * BANNER.visBot + u * 0.055;
+    // (2026-11-24 사용자 요청) 글자 키움: 높이 0.045u → SUB_TEXT_H(0.055u). 0.045u 는 화면 높이의 약 2.5% 로 접근성 기준(3% 이상)에 못 미쳤다.
+    // 0.055u ≈ 화면 높이의 3.1% (9:16 기준). 배너와의 틈·줄 간격도 글자 높이에 맞춰 늘린다 (이전과 같은 비율)
+    const th = u * SUB_TEXT_H;
+    let y = H * BANNER.visBot + th * 0.75 + u * 0.02;    // 알약 윗변이 배너 아래 0.02u
+    // (2026-11-24) 설명문은 주아체 (ctx.fontSub). 다 받기 전에는 기본 폰트 — 받으면 opt 가 바뀌어 새 텍스처로 다시 만든다.
+    // 주아체는 굵기가 하나뿐이라 weight 400 (700 을 주면 브라우저가 억지로 더 굵게 그린다)
+    const fo = ctx.fontSub && ctx.fontSub.ready ? { family: ctx.fontSub.family, weight: 400 } : {};
+    // (2026-11-24 사용자 요청) 길면 글자를 줄이지 않고 줄을 바꾼다 — 글자 크기 고정. 최대 폭 0.86u ÷ 글자 높이 = 한 줄 최대 가로세로비
+    // (2026-11-24 사용자 요청) 줄마다 알약이 따로 생겨 화면을 많이 가렸다 → 모든 줄을 알약(박스) 하나에 담는다.
+    //   안내(hint)는 원래 한 문장을 두 줄로 나눠 적은 것이라 한 문장으로 이어 붙인 뒤 폭에 맞춰 다시 나눈다 (줄 수가 줄어든다)
+    if (!lines.length) return;
+    const wrapped = wrapLine(lines.join(' '), hinting ? 72 : 56, fo);
+    let i = 0;
+    const texs = wrapped.map((l) => {
       // sub 는 값이 계속 바뀌는 글자(폭 %, 진행 %) → dynText(바뀔 때만 다시 만들고 이전 것은 지움). 안내(hint)는 정해진 문장이라 캐시
-      const tx = hinting ? ui.text(l) : ui.dynText('bannerSub', l), th = u * 0.045, tw = Math.min(tx.aspect * th, u * 0.86);
-      ui.rect(W / 2 - tw / 2 - u * 0.03, y - th * 0.75, tw + u * 0.06, th * 1.5, [1, 0.96, 0.88, 0.88], th * 0.75);
-      ui.drawText(tx, W / 2, y, th, 'center', u * 0.86, hinting ? [0.8, 0.35, 0.1, 1] : [0.3, 0.18, 0.1, 1]);
-      y += u * 0.075;
-    }
+      // const tx = hinting ? ui.text(l) : ui.dynText('bannerSub', l), th = u * 0.045, tw = Math.min(tx.aspect * th, u * 0.86);
+      // (2026-11-24) 줄바꿈으로 sub 도 여러 줄이 될 수 있어 줄마다 dynText 칸을 따로 둔다 (bannerSub0, bannerSub1 …)
+      return hinting ? ui.text(l, fo) : ui.dynText(`bannerSub${i++}`, l, fo);
+    });
+    // 박스 하나: 폭 = 가장 긴 줄, 높이 = 한 줄 알약(1.5·th) + 줄이 늘 때마다 LINE_STEP·th
+    const LINE_STEP = 0.95;                               // 박스 안 줄 간격 (글자 텍스처 높이 th 에는 위아래 여백이 있어 1 보다 작아도 겹치지 않는다)
+    const tw = Math.max(...texs.map((tx) => Math.min(tx.aspect * th, u * SUB_MAX_W)));
+    const bh = th * 1.5 + (texs.length - 1) * th * LINE_STEP;
+    const top = y - th * 0.75;
+    ui.rect(W / 2 - tw / 2 - u * 0.03, top, tw + u * 0.06, bh, [1, 0.96, 0.88, 0.88], Math.min(th * 0.75, bh / 2));
+    texs.forEach((tx) => {
+      ui.drawText(tx, W / 2, y, th, 'center', u * SUB_MAX_W, hinting ? [0.8, 0.35, 0.1, 1] : [0.3, 0.18, 0.1, 1]);
+      // y += u * 0.075;
+      // y += th * 1.7;                                   // (2026-11-24) 줄 간격도 글자 높이 비율로 (알약 높이 1.5·th + 틈)
+      y += th * LINE_STEP;
+    });
   }
 
   /* ---------- 입력: 재료 끌기 / 물레 돌리기 / 눌러서 터치 ----------
@@ -253,7 +312,11 @@ const Work = (() => {
     inv.open += (inv.target - inv.open) * Math.min(1, dt * 8);
     if (back && (back.t += dt / BACK_TIME) >= 1) back = null;   // 튕겨 돌아가기 끝
     // 기준 거리: 가장 큰 옹기 지름(1.8 + 고리)이 가로로 들어오는 거리 — 4단계와 같은 값. 여기에 줌아웃 배율(3단계만 1보다 큼)을 곱한다
-    const dist = Camera.fitDistance(ctx.W / ctx.H, FOVY, 2.2, 2.6) * 1.05 * zoom / SCENE_SCALE;   // (2026-11-20) ÷ SCENE_SCALE = 화면에서 SCENE_SCALE 배 크기
+    // const dist = Camera.fitDistance(ctx.W / ctx.H, FOVY, 2.2, 2.6) * 1.05 * zoom / SCENE_SCALE;   // (2026-11-20) ÷ SCENE_SCALE = 화면에서 SCENE_SCALE 배 크기
+    // (2026-11-24) 캔버스 비율(W/H) 대신 피그마 프레임 비율(u/H)로 거리를 정한다 — 배경·버튼(2D)과 같은 기준.
+    // 캔버스 비율을 쓰면 PC 가로 창에서는 높이 기준으로 맞춰져 물레가 프레임보다 넓어졌다(휴대폰의 약 1.5배).
+    // 프레임 비율이면 어느 화면에서도 물레 폭 ≈ 프레임 폭 u 의 69% (세로 휴대폰은 u = W 라 이전과 똑같다)
+    const dist = Camera.fitDistance(frameUnit(ctx) / ctx.H, FOVY, 2.2, 2.6) * 1.05 * zoom / SCENE_SCALE;   // ÷ SCENE_SCALE = 화면에서 SCENE_SCALE 배 크기
     // 거리가 바뀌면 부드럽게 따라간다 (갑자기 튀면 조절 중에 놓치기 쉽다)
     if (!distReady) { autoDist = dist; distReady = true; }
     else autoDist += (dist - autoDist) * Math.min(1, dt * 6);
@@ -261,6 +324,7 @@ const Work = (() => {
     camCfg.dist = autoDist * view.userZoom;
     view.panY = Math.min(view.targetMax, Math.max(view.targetMin, FOCUS_DEFAULT + view.panY)) - FOCUS_DEFAULT;
     camCfg.target[1] = FOCUS_DEFAULT + view.panY;
+    camCfg.shiftY += (shiftGoal - camCfg.shiftY) * Math.min(1, dt * 6);   // (2026-11-24) 3·4단계 장면 내리기 (setShift) — 부드럽게 따라간다
     cam.update(ctx.W / ctx.H, camCfg);
   }
 
@@ -338,6 +402,8 @@ const Work = (() => {
 
   return {
     S, cam, FOCUS_DEFAULT, setZoom, view, zoomBy, panBy, resetView, easeBack, setInventory, hint, drawInventory, drawGuide,
+    SHIFT_Y, SHIFT_Y_LOW, setShift,                  // (2026-11-24) 장면 세로 위치 — 3·4단계는 SHIFT_Y_LOW (물레 바닥이 슬롯 바 바로 위)
+    setActiveItems,                                  // (2026-11-24) 이 단계에서 쓰는 재료 (나머지 칸은 반투명)
     down, move, up, cancel, holding, hitClay, inInventory, update, drawScene, setLump, drawLump, setWall, drawWall,
     ALL_ITEMS, buttonRow, bottomLayout: layout,      // (2026-11-20) 아래 슬롯 바 4칸 · 그림 버튼 줄 · 아래쪽 배치 정보
     drawBanner,                                      // (2026-11-20) 위쪽 단계 배너

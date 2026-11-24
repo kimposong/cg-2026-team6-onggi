@@ -42,6 +42,13 @@
   const RING_GAP = 0.05;            // 원판은 옹기 표면보다 살짝 크게 → 가장자리 고리가 옹기 밖으로 보인다
   const AXIS_WIDTH = 0.07;          // 높이 축 판의 폭
   const KNOB_LIFT = 0.1;            // 높이 손잡이는 그 단의 윗면보다 이만큼 위에
+  // (2026-11-24 휴대폰 테스트) 터치는 손가락이 굵고 휴대폰에서는 옹기가 작게 보여 고리·축을 잡기 어렵다 → 터치일 때만 판정을 넓힌다 (짧은 변 s 비율)
+  const TOUCH = {
+    ringPadX: 0.06,                 // 고리 타원 판정을 좌우로 이만큼 더
+    ringMinY: 0.07,                 // 고리 판정의 세로 반지름 최소값 (마우스는 0.035)
+    knobR: 0.11,                    // 높이 손잡이 판정 반지름 (마우스는 0.08)
+    axisHalf: 0.045,                // 높이 축 판정 반폭 (마우스는 0.035)
+  };
   const PICK = [1.0, 0.75, 0.42];   // 잡고 있을 때 색
   const IDLE = [0.85, 0.9, 1.0];    // 기본 가이드 색
 
@@ -121,17 +128,18 @@
   }
 
   /* ---------- 무엇을 잡았는가: 손잡이 → 축 판 → 고리 → 없음. 가이드가 꺼져 있을 때는 잡히지 않는다 ---------- */
-  function pick(ctx, x, y) {
+  // (2026-11-24) touch = true 이면 TOUCH 값으로 판정을 넓힌다 (마우스는 이전 값 그대로)
+  function pick(ctx, x, y, touch = false) {
     const s = ctx.s;
     if (st.guideA < 0.5 || !st.ring) return null;
     const ax = st.axis;
     if (ax) {
-      if (Math.hypot(x - ax.knobX, y - ax.knobY) < s * 0.08) return 'height';
-      if (Math.abs(x - ax.x) < s * 0.035 && y > Math.min(ax.knobY, ax.bottom) && y < Math.max(ax.knobY, ax.bottom)) return 'height';
+      if (Math.hypot(x - ax.knobX, y - ax.knobY) < s * (touch ? TOUCH.knobR : 0.08)) return 'height';
+      if (Math.abs(x - ax.x) < s * (touch ? TOUCH.axisHalf : 0.035) && y > Math.min(ax.knobY, ax.bottom) && y < Math.max(ax.knobY, ax.bottom)) return 'height';
     }
     const b = st.ring;
-    const dx = (x - b.cx) / (b.a * 1.15);
-    const dy = (y - b.cy) / Math.max(b.b * 1.3, s * 0.035); // 타원이 납작하므로 세로 여유를 준다
+    const dx = (x - b.cx) / (b.a * 1.15 + (touch ? s * TOUCH.ringPadX : 0));
+    const dy = (y - b.cy) / Math.max(b.b * 1.3, s * (touch ? TOUCH.ringMinY : 0.035)); // 타원이 납작하므로 세로 여유를 준다
     if (dx * dx + dy * dy <= 1) return 'ring';
     return null;   // 인벤토리·물레 돌리기는 Work 가 처리
   }
@@ -184,8 +192,10 @@
         toastUntil: 0, wallDirty: true, baseDirty: true });
       st.cursor.visible = false;
       Work.setInventory(Work.ALL_ITEMS, true);        // 3단계 인벤토리: 타래만 → (2026-11-20 피그마) 슬롯 바 4칸, 흙으로 쌓는다
+      Work.setActiveItems(['soil']);                  // (2026-11-24) 3단계는 흙만 쓴다 → 물·잿물·장작 칸은 반투명
       Work.resetView();                               // 사용자 줌·상하 이동은 기본값에서 시작
       Work.view.panEnabled = true;                    // 옹기 밖을 잡고 위아래로 끌면 화면이 움직인다 (확대했을 때 위아래 보기)
+      Work.setShift(Work.SHIFT_Y_LOW);                // (2026-11-24) 장면을 아래로 — 물레 바닥이 슬롯 바보다 조금 위 (고정값, workbench SHIFT_Y_LOW)
     },
 
     update(ctx, dt) {
@@ -345,7 +355,11 @@
       }
       cb.ctx = ctx;
       const c = cursorFrom(ctx, x, y, type);
-      const target = Work.inInventory(ctx, x, y) ? null : pick(ctx, c.x, c.y);
+      // const target = Work.inInventory(ctx, x, y) ? null : pick(ctx, c.x, c.y);
+      // (2026-11-24) 터치는 넓힌 판정 + 커서 위치(손가락보다 위)에서 못 잡으면 손가락이 닿은 자리로도 한 번 더 판정한다
+      // (고리를 손가락으로 바로 누르는 사람이 많다). 드래그는 움직인 차이만 쓰므로 어느 점으로 잡았는지는 상관없다
+      const touch = type !== 'mouse';
+      const target = Work.inInventory(ctx, x, y) ? null : (pick(ctx, c.x, c.y, touch) || (touch ? pick(ctx, x, y, true) : null));
       if (target === 'height') {
         st.drag = { kind: 'height', lastY: c.y };
       } else if (target === 'ring') {
@@ -418,6 +432,7 @@
     exit(ctx) {
       Work.setZoom(1);                                  // 줌아웃은 3단계에서만. 2단계로 돌아가거나 다음 단계로 갈 때 기준 거리로
       Work.resetView();                                 // 사용자 줌·상하 이동도 기본값으로 (1·2단계는 그대로 보이게)
+      Work.setShift(Work.SHIFT_Y);                      // (2026-11-24) 장면 높이도 기본으로 (4단계로 가면 4단계 enter 가 다시 내린다)
       return ctx.pot_main.toData();
     },
   });

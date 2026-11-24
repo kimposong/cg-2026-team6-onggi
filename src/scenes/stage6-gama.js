@@ -340,6 +340,7 @@
       Object.assign(st, { phase: 'carry', drag: false, glide: false, moved: false, t: 0, hintT: 0, buttons: [], alpha: 1, fails: 0 });
       resetGame();
       Work.setInventory(Work.ALL_ITEMS, true);         // 이전 단계처럼 흙·물·잿물·장작 4칸을 계속 보여 준다 (장작만 쓸 수 있다)
+      Work.setActiveItems(['wood']);                   // (2026-11-24) 장작만 쓴다 → 흙·물·잿물 칸은 반투명
       placeAt(ctx, startY(ctx), ctx.W / 2);
       cb.ctx = ctx;
     },

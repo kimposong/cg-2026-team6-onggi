@@ -25,7 +25,8 @@
   // (2026-11-24) 대나무 도구 커서 그림(1254×1254)에서 칼끝(왼쪽 위 뾰족한 모서리)의 위치 = 그림 폭·높이 비율 (픽셀 약 50, 198).
   // 그림을 이 점이 포인터에 오도록 옮겨 그린다. 그림이 바뀌면 여기만 고친다
   const TOOL_TIP = { x: 0.04, y: 0.158 };
-  const TOOL_SIZE = 0.24;                 // 커서 그림 한 변 = 짧은 변 s × 0.24 (원래 조각칼 길이 s × 0.2 와 비슷하게)
+  // const TOOL_SIZE = 0.24;              // 커서 그림 한 변 = 짧은 변 s × 0.24 (원래 조각칼 길이 s × 0.2 와 비슷하게)
+  const TOOL_SIZE = 0.072;                // (2026-11-24 사용자 요청) 너무 커서 30% 로 (0.24 × 0.3)
   const TRACK_IN = 0.08;                  // 트랙 그림의 좌우 테두리 비율 — 손잡이 중심은 그림 폭의 8% ~ 92% 사이를 움직인다
   // (2026-11-20 비율 조정) 피그마 Frame 12 에서 잰 값. 가로·크기 = 프레임 폭 u 비율, 세로 = 화면 높이 비율.
   // 그림에는 투명 여백이 있어 "보이는 크기"에 맞게 그림 크기를 키워 둔다 (트랙 보이는 폭 97.9%, 손잡이 84%, 물레 버튼 92%)
@@ -230,8 +231,10 @@
       // (2026-11-24) 꾸미기에서는 재료를 쓰지 않으므로 슬롯 바를 접는다 (화면 아래로 내려가 안 보임, 접히면 inInventory 도 false).
       // 그 자리로 굵기 슬라이더·물레 버튼 줄을 내린다 (FIG.rowY). 5단계가 다시 펼친다
       Work.setInventory(Work.ALL_ITEMS, false);
+      Work.setActiveItems([]);                         // (2026-11-24) 재료를 쓰지 않는다 (슬롯 바가 내려가는 동안에도 반투명)
       Work.resetView();
       Work.view.panEnabled = true;                     // 옹기 밖을 위아래로 끌면 화면 이동 (3단계와 같음)
+      Work.setShift(Work.SHIFT_Y_LOW);                 // (2026-11-24) 3단계와 같은 높이로 장면을 아래로 (고정값, workbench SHIFT_Y_LOW)
       ctx.gl.canvas.style.cursor = 'none';             // 시스템 커서 대신 조각칼을 그린다 (캔버스 안 UI 규칙 유지)
     },
 
@@ -354,6 +357,7 @@
       ctx.gl.canvas.style.cursor = '';
       Work.setZoom(1);
       Work.resetView();
+      Work.setShift(Work.SHIFT_Y);                     // (2026-11-24) 5단계는 원래 높이
       mat4.fromTranslation(ctx.pot_main.model, [0, 0.003, 0]);   // 회전은 이 화면 안에서만
       return ctx.pot_main.toData();
     },

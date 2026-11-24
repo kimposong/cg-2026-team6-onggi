@@ -25,6 +25,8 @@
     go: (name, data) => Scenes.go(ctx, name, data),
     // (2026-11-20) 전체 배경 그림 — 피그마의 한옥 작업장. 불러오는 동안·실패하면 아래 clearColor 단색이 대신 보인다
     background: ImageTex.load(gl, './assets/backgrounds/background.png'),
+    // (2026-11-24) 배너 아래 설명문 폰트 — 배달의민족 주아체. 다 받기 전·실패하면 기본 폰트 (Work.drawBanner 가 ready 를 본다)
+    fontSub: TextTex.loadFont('BMJUA', './assets/fonts/bmjua.ttf'),
   };
 
   const perf = { acc: 0, count: 0, shown: '' };

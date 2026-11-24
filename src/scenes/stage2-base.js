@@ -19,6 +19,7 @@
     enter(ctx) {
       Object.assign(st, { f: 0, sq: 0, doneAt: 0, left: false });
       Work.setInventory(Work.ALL_ITEMS, true);          // 2단계: 인벤토리를 위로 접는다 → (2026-11-20 피그마) 슬롯 바 4칸을 그대로 보여 준다
+      Work.setActiveItems([]);                          // (2026-11-24) 2단계는 재료를 쓰지 않는다 → 4칸 모두 반투명
     },
 
     update(ctx, dt) {
