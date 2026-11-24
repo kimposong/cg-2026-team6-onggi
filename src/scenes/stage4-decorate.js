@@ -20,12 +20,18 @@
     track: './assets/stages/stage4/stage4-slider-track.png',
     knob:  './assets/stages/stage4/stage4-slider-knob.png',
     spin:  './assets/stages/stage4/stage4-btn-spin.png',
+    tool:  './assets/stages/stage4/stage4-cursor-bamboo-tool.png',   // (2026-11-24) 커서: 조각칼 → 팀이 그린 대나무 도구
   };
+  // (2026-11-24) 대나무 도구 커서 그림(1254×1254)에서 칼끝(왼쪽 위 뾰족한 모서리)의 위치 = 그림 폭·높이 비율 (픽셀 약 50, 198).
+  // 그림을 이 점이 포인터에 오도록 옮겨 그린다. 그림이 바뀌면 여기만 고친다
+  const TOOL_TIP = { x: 0.04, y: 0.158 };
+  const TOOL_SIZE = 0.24;                 // 커서 그림 한 변 = 짧은 변 s × 0.24 (원래 조각칼 길이 s × 0.2 와 비슷하게)
   const TRACK_IN = 0.08;                  // 트랙 그림의 좌우 테두리 비율 — 손잡이 중심은 그림 폭의 8% ~ 92% 사이를 움직인다
   // (2026-11-20 비율 조정) 피그마 Frame 12 에서 잰 값. 가로·크기 = 프레임 폭 u 비율, 세로 = 화면 높이 비율.
   // 그림에는 투명 여백이 있어 "보이는 크기"에 맞게 그림 크기를 키워 둔다 (트랙 보이는 폭 97.9%, 손잡이 84%, 물레 버튼 92%)
   const FIG = {
-    rowY: 0.706,                          // 슬라이더·물레 버튼 줄의 중심 높이
+    // rowY: 0.706,                       // 슬라이더·물레 버튼 줄의 중심 높이 (피그마 — 슬롯 바 바로 위)
+    rowY: 0.826,                          // (2026-11-24) 4단계는 슬롯 바를 숨기므로 줄을 슬롯 바 자리(중심 0.826H, workbench FIG.slotY)로 내린다
     trackX: 0.104, trackImg: 0.479,       // 트랙: 보이는 왼쪽 끝 0.104u, 보이는 폭 0.469u
     knobImg: 0.129,                       // 손잡이: 보이는 지름 0.108u
     spinX: 0.819, spinImg: 0.113,         // 물레 버튼: 중심 0.819u, 보이는 지름 0.104u
@@ -193,7 +199,13 @@
     const ppu = Math.abs(Camera.worldToScreen(Work.cam.viewProj, [0, 1, 0], ctx.W, ctx.H).y - Camera.worldToScreen(Work.cam.viewProj, [0, 0, 0], ctx.W, ctx.H).y);
     const d = Math.max(s * 0.02, (brushPx() / TEX_W) * Math.PI * 2 * R * ppu);
     ui.circle(x, y, d, [1, 1, 1, 0.2]);
-    if (st.tool === 'knife') {
+    const tTool = ImageTex.get(ctx.gl, IMG.tool);
+    if (st.tool === 'knife' && tTool.ready) {
+      // (2026-11-24) 대나무 도구 그림: 그림 속 칼끝(TOOL_TIP)이 포인터 (x, y)에 오도록 왼쪽 위로 옮겨 그린다
+      const w = s * TOOL_SIZE, h = w / tTool.aspect;
+      ui.drawImage(tTool, x - w * TOOL_TIP.x, y - h * TOOL_TIP.y, w, h);
+    } else if (st.tool === 'knife') {
+      // (그림을 불러오기 전에는 원래 조각칼 모양)
       // 조각칼: 날(밝은 회색)은 칼끝에서 위로, 손잡이(나무색)는 그 위. 끝점에 작은 주황 점
       ui.rect(x - s * 0.006, y - s * 0.075, s * 0.012, s * 0.075, [0.86, 0.88, 0.92, 0.95], s * 0.004);
       ui.rect(x - s * 0.014, y - s * 0.2, s * 0.028, s * 0.13, [0.47, 0.31, 0.18, 0.95], s * 0.009);
@@ -214,7 +226,10 @@
       if (!decal) initDecal(ctx.gl);
       pot.decal = decal.tex;                           // 이후 단계·전시실도 이 텍스처를 그대로 쓴다
       Object.assign(st, { tool: 'knife', spin: false, stroke: null, sliderDrag: false, toastUntil: 0, cursorVisible: false });
-      Work.setInventory(Work.ALL_ITEMS, true);         // 재료 없음 (인벤토리는 그리지 않는다) → (2026-11-20 피그마) 슬롯 바 4칸은 보이되 재료는 받지 않는다
+      // Work.setInventory(Work.ALL_ITEMS, true);      // 재료 없음 (인벤토리는 그리지 않는다) → (2026-11-20 피그마) 슬롯 바 4칸은 보이되 재료는 받지 않는다
+      // (2026-11-24) 꾸미기에서는 재료를 쓰지 않으므로 슬롯 바를 접는다 (화면 아래로 내려가 안 보임, 접히면 inInventory 도 false).
+      // 그 자리로 굵기 슬라이더·물레 버튼 줄을 내린다 (FIG.rowY). 5단계가 다시 펼친다
+      Work.setInventory(Work.ALL_ITEMS, false);
       Work.resetView();
       Work.view.panEnabled = true;                     // 옹기 밖을 위아래로 끌면 화면 이동 (3단계와 같음)
       ctx.gl.canvas.style.cursor = 'none';             // 시스템 커서 대신 조각칼을 그린다 (캔버스 안 UI 규칙 유지)
