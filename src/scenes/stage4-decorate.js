@@ -188,7 +188,8 @@
       console.log('[옹기 형태]', JSON.stringify(ctx.pot_main.toData()));
       // 완성하기 화면이 생기면: ctx.go('stage5-glaze', ctx.pot_main.toData());
       // (2026-11-20) 5단계 화면이 생겨 연결 — exit 가 toData() 를 넘기고, 무늬 텍스처는 pot_main.decal 로 그대로 따라간다
-      ctx.go('stage5-glaze');
+      // (2026-11-25 피그마 최종안) 「4단계 완료」 팝업을 거쳐 넘어간다 (원래: ctx.go('stage5-glaze'))
+      Overlay.stageDone(ctx, 4, () => ctx.go('stage5-glaze'));
     }
   }
 
@@ -225,7 +226,8 @@
       st.outer = pot.outerProfile();
       st.height = pot.shape.height;
       if (!decal) initDecal(ctx.gl);
-      pot.decal = decal.tex;                           // 이후 단계·전시실도 이 텍스처를 그대로 쓴다
+      else clearDecal();                               // (2026-11-25) 「다시 만들기」로 새 옹기를 빚어 오면 이전 무늬를 지운다 (4단계는 3단계에서만 들어온다)
+      pot.decal = decal.tex;                          // 이후 단계·전시실도 이 텍스처를 그대로 쓴다
       Object.assign(st, { tool: 'knife', spin: false, stroke: null, sliderDrag: false, toastUntil: 0, cursorVisible: false });
       // Work.setInventory(Work.ALL_ITEMS, true);      // 재료 없음 (인벤토리는 그리지 않는다) → (2026-11-20 피그마) 슬롯 바 4칸은 보이되 재료는 받지 않는다
       // (2026-11-24) 꾸미기에서는 재료를 쓰지 않으므로 슬롯 바를 접는다 (화면 아래로 내려가 안 보임, 접히면 inInventory 도 false).

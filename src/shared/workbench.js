@@ -233,26 +233,43 @@ const Work = (() => {
     // (2026-11-24 사용자 요청) 줄마다 알약이 따로 생겨 화면을 많이 가렸다 → 모든 줄을 알약(박스) 하나에 담는다.
     //   안내(hint)는 원래 한 문장을 두 줄로 나눠 적은 것이라 한 문장으로 이어 붙인 뒤 폭에 맞춰 다시 나눈다 (줄 수가 줄어든다)
     if (!lines.length) return;
-    const wrapped = wrapLine(lines.join(' '), hinting ? 72 : 56, fo);
-    let i = 0;
-    const texs = wrapped.map((l) => {
-      // sub 는 값이 계속 바뀌는 글자(폭 %, 진행 %) → dynText(바뀔 때만 다시 만들고 이전 것은 지움). 안내(hint)는 정해진 문장이라 캐시
-      // const tx = hinting ? ui.text(l) : ui.dynText('bannerSub', l), th = u * 0.045, tw = Math.min(tx.aspect * th, u * 0.86);
-      // (2026-11-24) 줄바꿈으로 sub 도 여러 줄이 될 수 있어 줄마다 dynText 칸을 따로 둔다 (bannerSub0, bannerSub1 …)
-      return hinting ? ui.text(l, fo) : ui.dynText(`bannerSub${i++}`, l, fo);
+    // (2026-11-25) 상자 그리기를 drawNote 로 뺐다 — 6단계 아래쪽 안내·결과 글도 같은 모양으로 그리려고. 동작은 그대로
+    // sub 는 값이 계속 바뀌는 글자(폭 %, 진행 %) → dynText(바뀔 때만 다시 만들고 이전 것은 지움). 안내(hint)는 정해진 문장이라 캐시
+    // (2026-11-24) 줄바꿈으로 sub 도 여러 줄이 될 수 있어 줄마다 dynText 칸을 따로 둔다 (bannerSub0, bannerSub1 …)
+    drawNote(ctx, lines.join(' '), y - th * 0.75, {
+      slot: hinting ? null : 'bannerSub', fontSize: hinting ? 72 : 56,
+      color: hinting ? [0.8, 0.35, 0.1, 1] : [0.3, 0.18, 0.1, 1],
     });
+  }
+
+  /**
+   * (2026-11-25) 설명문 상자: 배너 아래 설명문과 같은 모양 — 밝은 알약 하나에 진한 글자(주아체, 높이 SUB_TEXT_H·u),
+   * 길면 글자를 줄이지 않고 띄어쓰기에서 줄바꿈 (최대 폭 SUB_MAX_W·u). 화면 어디에 두든 모든 설명 글이 같은 크기로 보이게.
+   * y = 상자 윗변 (opt.anchor === 'bottom' 이면 아랫변), opt = { slot: 값이 바뀌는 글자면 dynText 칸 이름(없으면 캐시), color, alpha, fontSize(줄바꿈 측정용) }
+   * 반환: 상자 높이 (px)
+   */
+  function drawNote(ctx, str, y, opt = {}) {
+    const { W, ui } = ctx, u = frameUnit(ctx), th = u * SUB_TEXT_H, a = opt.alpha === undefined ? 1 : opt.alpha;
+    const fo = ctx.fontSub && ctx.fontSub.ready ? { family: ctx.fontSub.family, weight: 400 } : {};
+    // 줄바꿈을 잴 글자 크기 = 실제 텍스처 크기 (dynText 56px, text 72px — 다르면 여백 비율이 달라 줄이 최대 폭을 살짝 넘고 글자가 줄어든다)
+    const wrapped = wrapLine(str, opt.fontSize || (opt.slot ? 56 : 72), fo);
+    let i = 0;
+    const texs = wrapped.map((l) => (opt.slot ? ui.dynText(`${opt.slot}${i++}`, l, fo) : ui.text(l, fo)));
     // 박스 하나: 폭 = 가장 긴 줄, 높이 = 한 줄 알약(1.5·th) + 줄이 늘 때마다 LINE_STEP·th
     const LINE_STEP = 0.95;                               // 박스 안 줄 간격 (글자 텍스처 높이 th 에는 위아래 여백이 있어 1 보다 작아도 겹치지 않는다)
     const tw = Math.max(...texs.map((tx) => Math.min(tx.aspect * th, u * SUB_MAX_W)));
     const bh = th * 1.5 + (texs.length - 1) * th * LINE_STEP;
-    const top = y - th * 0.75;
-    ui.rect(W / 2 - tw / 2 - u * 0.03, top, tw + u * 0.06, bh, [1, 0.96, 0.88, 0.88], Math.min(th * 0.75, bh / 2));
+    const top = opt.anchor === 'bottom' ? y - bh : y;
+    ui.rect(W / 2 - tw / 2 - u * 0.03, top, tw + u * 0.06, bh, [1, 0.96, 0.88, 0.88 * a], Math.min(th * 0.75, bh / 2));
+    const col = opt.color || [0.3, 0.18, 0.1, 1];
+    let ly = top + th * 0.75;
     texs.forEach((tx) => {
-      ui.drawText(tx, W / 2, y, th, 'center', u * SUB_MAX_W, hinting ? [0.8, 0.35, 0.1, 1] : [0.3, 0.18, 0.1, 1]);
+      ui.drawText(tx, W / 2, ly, th, 'center', u * SUB_MAX_W, [col[0], col[1], col[2], col[3] * a]);
       // y += u * 0.075;
       // y += th * 1.7;                                   // (2026-11-24) 줄 간격도 글자 높이 비율로 (알약 높이 1.5·th + 틈)
-      y += th * LINE_STEP;
+      ly += th * LINE_STEP;
     });
+    return bh;
   }
 
   /* ---------- 입력: 재료 끌기 / 물레 돌리기 / 눌러서 터치 ----------
@@ -407,6 +424,7 @@ const Work = (() => {
     down, move, up, cancel, holding, hitClay, inInventory, update, drawScene, setLump, drawLump, setWall, drawWall,
     ALL_ITEMS, buttonRow, bottomLayout: layout,      // (2026-11-20) 아래 슬롯 바 4칸 · 그림 버튼 줄 · 아래쪽 배치 정보
     drawBanner,                                      // (2026-11-20) 위쪽 단계 배너
+    drawNote,                                        // (2026-11-25) 설명문 상자 (배너 아래 설명문과 같은 모양 — 어디에든)
     get inv() { return inv; },
   };
 })();

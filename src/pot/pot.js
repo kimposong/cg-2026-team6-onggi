@@ -122,6 +122,12 @@ const Pot = (() => {
     //   hex: 고른 색 코드(null = 안 바름) / color: 셰이더용 0~1 RGB / level: 바른 높이 비율 0~1 / under: 다시 바르는 동안 남아 있는 이전 색 (없으면 null)
     const glaze = { hex: null, color: [0, 0, 0], level: 0, under: null };
     const glazeOpt = { color: glaze.color, top: 0, under: null };   // 셰이더에 넘기는 값 (재사용)
+    // (2026-11-25) 구운 결과 → 셰이더 값. 6단계가 끝날 때 보여 주는 마지막 모습과 같은 값 (stage6-gama.js 결과 연출이 다 끝난 때)
+    const FIRED_FX = {
+      good: { burn: 0, dull: 0, shine: 0.6 },   // 알맞게 구움: 윤기
+      cold: { burn: 0, dull: 1, shine: 0 },     // 덜 구움: 광택 없이 푸석
+      burnt: { burn: 1, dull: 0, shine: 0 },    // 탐: 새까맣게
+    };
 
     // 물레 윗판과 겹쳐 깜빡이지 않게 살짝 띄운다. 화면이 회전을 더하고 싶으면 이 행렬을 직접 고친다 (4단계: 물레 각도)
     const model = mat4.fromTranslation(mat4.create(), [0, 0.003, 0]);
@@ -131,6 +137,7 @@ const Pot = (() => {
       model,
       decal: null,          // 새긴 무늬 텍스처 (WebGLTexture). 4단계가 만들어 넣고, 이후 단계·전시실이 그대로 쓴다
       glaze,                // (2026-11-20) 유약 상태 { hex, color, level, under } — 5단계가 바꾼다
+      fired: null,          // (2026-11-25) 구운 결과 'good' | 'cold' | 'burnt' (null = 굽기 전) — 6단계가 넣고, draw 가 겉모습에 반영한다
 
       /** i번 단 중심의 높이 (월드 단위) */
       bandY(i) { return sum(shape.heights.slice(0, i)) + shape.heights[i] / 2; },
@@ -168,6 +175,7 @@ const Pot = (() => {
         shape.radii = DEFAULT_RADII.slice();
         shape.heights = DEFAULT_HEIGHTS.slice();
         glaze.hex = null; glaze.level = 0; glaze.under = null;   // (2026-11-20) 새 옹기는 유약 없이
+        this.fired = null;                                        // (2026-11-25) 새 옹기는 굽기 전
         dirty = true;
       },
 
@@ -205,9 +213,10 @@ const Pot = (() => {
           glazeOpt.top = glaze.hex ? (glaze.level >= 1 ? H + 1 : glaze.level * (H + 0.05)) + 0.003 : 0;
           glazeOpt.under = glaze.under;
         }
-        potShader.draw(floorGpu, model, color, { glaze: gz });
-        potShader.draw(wallGpu, model, color, { ridge: 1, activeV, bandHalf, decal: this.decal, glaze: gz });
-        potShader.draw(liningGpu, model, liningCol, { ridge: 1, glaze: gz });
+        const fired = FIRED_FX[this.fired] || null;   // (2026-11-25) 구운 결과 겉모습 (굽기 전이면 null)
+        potShader.draw(floorGpu, model, color, { glaze: gz, fired });
+        potShader.draw(wallGpu, model, color, { ridge: 1, activeV, bandHalf, decal: this.decal, glaze: gz, fired });
+        potShader.draw(liningGpu, model, liningCol, { ridge: 1, glaze: gz, fired });
       },
 
       /** 다음 단계로 넘길 데이터 — 화면 간 약속 형식. height 는 참고용(단 높이의 합) */

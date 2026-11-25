@@ -41,6 +41,10 @@ const PotShader = (() => {
   uniform float uGlazeTop;  // 유약이 올라온 높이 (월드 y). 0 이하면 유약 없음
   uniform vec3 uGlazeUnder; // 새 색이 차오르는 동안 그 위쪽에 남아 있는 이전 유약 색
   uniform float uUseUnder;  // 1이면 이전 유약이 옹기 전체에 깔려 있다
+  // (2026-11-25) 구운 결과 — 6단계 굽기 셰이더(stage6-gama.js BAKE_FS)와 같은 식. 7단계·마무리 화면이 구운 겉모습을 그대로 보여 준다
+  uniform float uBurn;      // 너무 뜨거워 숯처럼 새까맣게 탐 (0~1)
+  uniform float uDull;      // 덜 구워져 광택 없이 푸석함 (0~1)
+  uniform float uShine;     // 알맞게 구워져 윤기가 더해짐 (0~1)
   out vec4 outColor;
 
   void main() {
@@ -93,6 +97,7 @@ const PotShader = (() => {
     // 유약 광택: 하이라이트를 좁고 밝게 (Phong 지수 24 → 70) — 흙은 거칠어 넓고 흐리게, 유약은 매끈해 작고 또렷하게 (6주차 재질)
     spec = mix(spec, pow(max(dot(N, Hh), 0.0), 70.0) * 0.55, gzSurf);
     spec *= 1.0 - 0.85 * cv * gz;                        // (2026-11-20) 유약 없는 홈은 무광 — 같은 밝기라도 반들거림 차이로 그림이 구분된다
+    spec = spec * (1.0 - uDull) * (1.0 - uBurn) * (1.0 + uShine * 1.6);   // (2026-11-25) 구운 결과: 식으면·타면 광택이 사라지고, 잘 구우면 더 반짝
     // 막 차오르는 경계선은 유약이 두껍게 맺혀 살짝 진하게
     float rim = uGlazeTop > 0.0 ? 1.0 - smoothstep(0.0, 0.03, abs(vWorldPos.y - (uGlazeTop + wob))) : 0.0;
     base *= 1.0 - 0.18 * rim * g;
@@ -118,6 +123,10 @@ const PotShader = (() => {
       float d = abs(vUV.y - uActiveV) / uBandHalf;
       col = mix(col, vec3(1.0, 0.78, 0.45), (1.0 - smoothstep(0.7, 1.0, d)) * 0.28);
     }
+    // (2026-11-25) 구운 결과 (기본값 0 이면 그대로) — 6단계 BAKE_FS 의 끝부분과 같은 식 (달아오름 uHeat 은 가마 안 연출이라 뺌)
+    float lum = dot(col, vec3(0.3, 0.59, 0.11));
+    col = mix(col, mix(col, vec3(lum), 0.5) * vec3(1.15, 1.0, 0.85) + vec3(0.09, 0.075, 0.06), uDull);   // 식은 옹기: 윤기 없이 푸석한 흙빛
+    col = mix(col, vec3(0.05, 0.04, 0.04) + vec3(lum) * 0.22, uBurn);                                    // 탄 옹기: 숯처럼 새까맣지만 모양의 음영은 남는다
     outColor = vec4(col, 1.0);
   }`;
 
@@ -150,6 +159,7 @@ const PotShader = (() => {
      * 메시 하나 그리기
      * @param opt { ridge: 무늬 종류, activeV: 강조 구간 높이 비율(-1 없음), bandHalf: 강조 띠 절반 두께, decal: 새긴 무늬 텍스처(없으면 null) }
      *   (2026-11-20) glaze: { color:[r,g,b], top: 월드 높이(0 이하 = 없음), under:[r,g,b] 또는 null } — 없으면 유약 없음
+     *   (2026-11-25) fired: { burn, dull, shine } (각 0~1) — 구운 결과 겉모습. 없으면 굽기 전
      */
     function draw(gpu, model, color, opt = {}) {
       mat3.normalFromMat4(normalMat, model); // 법선에는 모델 행렬 대신 역전치 행렬 (5주차)
@@ -168,6 +178,11 @@ const PotShader = (() => {
       gl.uniform3fv(locs.uGlazeColor, gz ? gz.color : color);
       gl.uniform1f(locs.uUseUnder, gz && gz.under ? 1 : 0);
       gl.uniform3fv(locs.uGlazeUnder, gz && gz.under ? gz.under : color);
+      // (2026-11-25) 구운 결과 { burn, dull, shine } — 없으면 0 (유약처럼 매번 꺼 준다: 물레에 묻지 않게)
+      const fx = opt.fired;
+      gl.uniform1f(locs.uBurn, fx ? fx.burn : 0);
+      gl.uniform1f(locs.uDull, fx ? fx.dull : 0);
+      gl.uniform1f(locs.uShine, fx ? fx.shine : 0);
       gl.bindVertexArray(gpu.vao);
       gl.drawElements(gl.TRIANGLES, gpu.count, gl.UNSIGNED_SHORT, 0);
     }

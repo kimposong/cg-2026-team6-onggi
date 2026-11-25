@@ -9,12 +9,15 @@ const UI = (() => {
   in vec2 aPos;            // 0~1 단위 사각형
   uniform mat4 uOrtho;     // 좌상단 (0,0) ~ 우하단 (W,H) 픽셀 좌표계
   uniform vec4 uRect;      // x, y, w, h (픽셀)
+  uniform vec4 uPart;      // (2026-11-25) 그림의 어느 부분을 그릴지: 왼쪽 위 (u0, v0) ~ 오른쪽 아래 (u1, v1), 그림 위쪽 기준 0~1. 기본 (0,0,1,1) = 전체
   out vec2 vUV;
   out vec2 vLocal;
   void main() {
     vec2 p = uRect.xy + aPos * uRect.zw;
     // 텍스트 텍스처는 UNPACK_FLIP_Y 로 뒤집어 올렸으므로, 화면 위쪽(aPos.y=0)이 v=1을 읽어야 한다
-    vUV = vec2(aPos.x, 1.0 - aPos.y);
+    // vUV = vec2(aPos.x, 1.0 - aPos.y);
+    vec2 t = mix(uPart.xy, uPart.zw, aPos);      // (2026-11-25) 그림 일부만 그리기 (drawImagePart)
+    vUV = vec2(t.x, 1.0 - t.y);
     vLocal = aPos * uRect.zw;
     gl_Position = uOrtho * vec4(p, 0.0, 1.0);
   }`;
@@ -55,7 +58,14 @@ const UI = (() => {
 
     // 바뀌지 않는 글자는 한 번만 만들어 재사용 (매 프레임 만들면 프레임 시간이 나빠진다)
     const cache = new Map();
+    // (2026-11-25) 기본 폰트: family 를 따로 주지 않은 글자는 모두 이 폰트로 (main.js 가 주아체를 다 받으면 setFont 로 정한다).
+    // 화면마다 폰트를 일일이 넘기다 빠뜨리는 일이 없게 — 빠진 곳(6단계 안내 글자 등)이 있었다
+    let defFont = null;
+    function setFont(opt) { defFont = opt; }
+    const withFont = (opt) => (defFont && !opt.family ? { ...opt, ...defFont } : opt);
+
     function text(str, opt = {}) {
+      opt = withFont(opt);
       // const key = `${str}|${opt.weight || 700}`;
       const key = `${str}|${opt.weight || 700}|${opt.family || ''}`;   // (2026-11-24) 폰트가 다르면 다른 텍스처
       if (!cache.has(key)) cache.set(key, TextTex.makeTextTexture(gl, str, { fontSize: 72, ...opt }));
@@ -65,6 +75,7 @@ const UI = (() => {
     const slots = {};
     // (2026-11-24) opt 추가 (폰트 family·weight). 폰트가 바뀌어도 다시 만든다 (폰트를 다 받은 순간 기본 폰트 → 새 폰트)
     function dynText(slot, str, opt = {}) {
+      opt = withFont(opt);                                   // (2026-11-25) 기본 폰트
       const s = slots[slot], key = `${str}|${opt.weight || 700}|${opt.family || ''}`;
       if (s && s.key === key) return s.t;
       if (s) gl.deleteTexture(s.t.tex);
@@ -80,6 +91,7 @@ const UI = (() => {
       gl.useProgram(prog);
       mat4.ortho(ortho, 0, W, H, 0, -1, 1); // 좌상단 (0,0), 우하단 (W,H)
       gl.uniformMatrix4fv(locs.uOrtho, false, ortho);
+      gl.uniform4f(locs.uPart, 0, 0, 1, 1);   // (2026-11-25) 기본은 그림 전체
       gl.bindVertexArray(vao);
       gl.activeTexture(gl.TEXTURE0);
       gl.uniform1i(locs.uTex, 0);
@@ -121,6 +133,17 @@ const UI = (() => {
       gl.uniform4fv(locs.uColor, color);
       gl.uniform1i(locs.uUseTex, 1);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    /**
+     * (2026-11-25) 그림의 일부만 그린다 (스프라이트 자르기). part = [u0, v0, u1, v1] — 그림 왼쪽 위 기준 0~1 비율.
+     * 화면의 (x, y, w, h) 사각형에 그 부분이 들어간다. 예: 온도계 액체를 지금 온도 높이까지만
+     */
+    function drawImagePart(t, x, y, w, h, part, color = [1, 1, 1, 1]) {
+      if (!t || !t.tex) return;
+      gl.uniform4f(locs.uPart, part[0], part[1], part[2], part[3]);
+      drawImage(t, x, y, w, h, color);
+      gl.uniform4f(locs.uPart, 0, 0, 1, 1);   // 다른 그리기에 남지 않게 되돌린다
     }
 
     /** (2026-11-20) 그림을 화면 W × H 에 비율을 지키며 꽉 채운다 (CSS 의 background-size: cover). 넘치는 쪽은 가운데 기준으로 잘린다 */
@@ -170,7 +193,7 @@ const UI = (() => {
       return Math.abs(px - btn.x) <= btn.w / 2 && Math.abs(py - btn.y) <= btn.h / 2;
     }
 
-    return { begin, rect, circle, drawText, drawImage, drawCover, drawFitHeight, text, dynText, button, imageButton, layoutBottomPair, hit };
+    return { setFont, begin, rect, circle, drawText, drawImage, drawImagePart, drawCover, drawFitHeight, text, dynText, button, imageButton, layoutBottomPair, hit };
   }
 
   return { create };

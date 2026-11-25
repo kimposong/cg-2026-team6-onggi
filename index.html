@@ -40,6 +40,8 @@
   <!-- pot: 옹기를 만드는 공통 틀 -->
   <script src="./src/pot/pot.js"></script>
   <script src="./src/shared/workbench.js"></script>
+  <!-- (2026-11-25) 모든 화면 위에 덮는 층: 단계 완료 팝업 + 일시정지 (Scenes·Work 를 쓴다 — 함수 안에서만 부르므로 순서는 여기면 된다) -->
+  <script src="./src/shared/overlay.js"></script>
 
   <!-- scenes: 화면마다 하나. 화면 전용 셰이더·메시는 그 파일 안에 -->
   <script src="./src/scenes/scenes.js"></script>
@@ -51,6 +53,7 @@
   <script src="./src/scenes/stage5-glaze.js"></script>
   <script src="./src/scenes/stage6-gama.js"></script>
   <script src="./src/scenes/stage7-result.js"></script>
+  <script src="./src/scenes/ending.js"></script>   <!-- (2026-11-25) 마무리 화면 「옹기장이가 되었어요!」 -->
   <script src="./src/scenes/gallery/gallery.js"></script>
 
   <script src="./src/main.js"></script>

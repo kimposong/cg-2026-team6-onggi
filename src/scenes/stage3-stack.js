@@ -179,7 +179,8 @@
       if (st.layers < LAYERS) { Work.hint([`흙을 ${LAYERS}단까지 올려야 완성돼요`, `(지금 ${st.layers}/${LAYERS})`]); return; }
       // 4단계(꾸미기)로 — exit 가 toData() 를 넘긴다
       console.log('[옹기 형태]', JSON.stringify(ctx.pot_main.toData()));
-      ctx.go('stage4-decorate');
+      // (2026-11-25 피그마 최종안) 「3단계 완료」 팝업을 거쳐 넘어간다 (원래: ctx.go('stage4-decorate'))
+      Overlay.stageDone(ctx, 3, () => ctx.go('stage4-decorate'));
     }
   }
 

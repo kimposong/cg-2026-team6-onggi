@@ -56,5 +56,24 @@ const ImageTex = (() => {
     return cache.get(url);
   }
 
-  return { load, get };
+  /**
+   * (2026-11-25) 2D 캔버스 → 텍스처 (코드로 그린 그림: 7단계 옹기 카드 등). load 와 같은 모양 { tex, w, h, aspect, ready } 을 돌려준다
+   * out 을 넘기면 그 텍스처를 다시 쓴다 (내용이 바뀔 때마다 새로 만들지 않게)
+   */
+  function fromCanvas(gl, canvas, out) {
+    out = out || { tex: gl.createTexture(), w: 1, h: 1, aspect: 1, ready: false, failed: false };
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, out.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);      // UI 셰이더 규칙 (load 와 같음)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    Object.assign(out, { w: canvas.width, h: canvas.height, aspect: canvas.width / canvas.height, ready: true });
+    return out;
+  }
+
+  return { load, get, fromCanvas };
 })();

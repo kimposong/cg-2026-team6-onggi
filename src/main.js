@@ -42,18 +42,22 @@
   }
 
   /* ---------- 입력 → 지금 화면 ---------- */
+  // (2026-11-25) 위에 덮는 층(Overlay: 완료 팝업·일시정지)이 먼저 받는다. 이 층이 먹으면(true) 화면으로 안 보낸다
   Input.setup(canvas, {
-    down: (x, y, type) => Scenes.call('down', ctx, x, y, type),
-    move: (x, y, type) => Scenes.call('move', ctx, x, y, type),
-    up: (x, y, type) => Scenes.call('up', ctx, x, y, type),
-    hover: (x, y) => Scenes.call('hover', ctx, x, y),
-    wheel: (x, y, dy) => Scenes.call('wheel', ctx, x, y, dy),       // 마우스 휠 (화면이 줌으로 쓴다)
-    pinch: (f, cx, cy) => Scenes.call('pinch', ctx, f, cx, cy),     // 두 손가락 벌리기·오므리기 (줌)
+    down: (x, y, type) => { if (!Overlay.down(ctx, x, y)) Scenes.call('down', ctx, x, y, type); },
+    move: (x, y, type) => { if (!Overlay.move(ctx, x, y)) Scenes.call('move', ctx, x, y, type); },
+    up: (x, y, type) => { if (!Overlay.up(ctx, x, y)) Scenes.call('up', ctx, x, y, type); },
+    hover: (x, y) => { if (!Overlay.blocking()) Scenes.call('hover', ctx, x, y); },
+    wheel: (x, y, dy) => { if (!Overlay.blocking()) Scenes.call('wheel', ctx, x, y, dy); },       // 마우스 휠 (화면이 줌으로 쓴다)
+    pinch: (f, cx, cy) => { if (!Overlay.blocking()) Scenes.call('pinch', ctx, f, cx, cy); },     // 두 손가락 벌리기·오므리기 (줌)
     cancel: () => Scenes.call('cancel', ctx),                        // 두 번째 손가락이 닿아 한 손가락 조작이 끊길 때
   });
+  // (2026-11-25) ESC = 일시정지 켜기·끄기 (PC). 휴대폰은 오른쪽 위 일시정지 버튼
+  window.addEventListener('keydown', (e) => Overlay.key(ctx, e.key));
 
   /* ---------- 렌더 루프 ---------- */
   let last = performance.now();
+  let fontSet = false;
   function frame(now) {
     const ms = now - last;
     const dt = Math.min(ms / 1000, 0.05); // 탭을 다시 열었을 때 한 번에 크게 튀지 않게
@@ -61,6 +65,9 @@
     last = now;
 
     resize();
+    // (2026-11-25) 주아체를 다 받으면 화면의 모든 글자 기본 폰트로 (받기 전·실패하면 기본 폰트 그대로).
+    // 주아체는 굵기가 하나뿐이라 weight 400 (700 을 주면 브라우저가 억지로 두껍게 그린다)
+    if (ctx.fontSub.ready && !fontSet) { ctx.ui.setFont({ family: ctx.fontSub.family, weight: 400 }); fontSet = true; }
     gl.clearColor(0.165, 0.13, 0.11, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     // (2026-11-20) 배경 그림을 3D보다 먼저 화면 가득 그린다. ui.begin 이 깊이 테스트를 끄므로 깊이 버퍼에 남지 않고,
@@ -71,13 +78,18 @@
       ctx.ui.drawFitHeight(ctx.background, ctx.W, ctx.H);
     }
 
-    Scenes.call('update', ctx, dt);
-    Scenes.call('draw', ctx);
+    // (2026-11-25) 팝업·일시정지가 떠 있으면 화면의 update 를 건너뛴다 = 게임 전체 정지 (타이머·리듬·물레 모두 dt 로 움직인다)
+    Overlay.update(ctx, dt);
+    if (!Overlay.blocking()) Scenes.call('update', ctx, dt);
+    // 완료 팝업일 때는 3D·화면 UI 를 숨기고 배경 그림만 (일시정지는 멈춘 화면을 그대로 보여 준다)
+    if (!Overlay.hidesScene()) Scenes.call('draw', ctx);
 
     ctx.ui.begin(ctx.W, ctx.H);
-    Scenes.call('drawUI', ctx);
+    if (!Overlay.hidesScene()) Scenes.call('drawUI', ctx);
+    Overlay.drawUI(ctx);
     // 프레임 시간 (성능 측정, 12주차 기준 16.7ms 이하) — 모든 화면 공통
-    ctx.ui.drawText(ctx.ui.dynText('ms', perf.shown), ctx.W - ctx.s * 0.03, ctx.s * 0.03, ctx.s * 0.03, 'right', Infinity, [1, 1, 1, 0.5]);
+    // (2026-11-25) 오른쪽 위는 일시정지 버튼 자리라 왼쪽 위로 옮김
+    ctx.ui.drawText(ctx.ui.dynText('ms', perf.shown), ctx.s * 0.03, ctx.s * 0.03, ctx.s * 0.03, 'left', Infinity, [1, 1, 1, 0.5]);
 
     requestAnimationFrame(frame);
   }

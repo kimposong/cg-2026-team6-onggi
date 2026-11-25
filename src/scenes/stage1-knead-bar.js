@@ -27,6 +27,7 @@
   const R = 0.42, H = 0.75, P = 2.3;                // 흙 덩어리 모양 (초타원)
   const st = { sub: 0, score: 0, combo: 0, best: 0, t: 0, appear: 0, wetT: 0, sq: 0, pulse: 0, pops: [], doneAt: 0, left: false };
   // sub 0: 흙 → 물레 / 1: 물 → 흙 / 2: 리듬 반죽
+  // (2026-11-25) 1.5: 물을 부어 젖는 중 — 「1단계 완료」 팝업의 「다음으로」를 누르면 2 (그 전에는 배너 1, 게이지 없음)
 
   const cb = {
     // 리듬 반죽 중에는 터치 위치와 상관없이 화면 어디를 눌러도 되도록 onPress 로 처리한다 (아이들이 정확히 누르기 어렵다)
@@ -41,10 +42,21 @@
         else Work.hint(['지금은 흙이 필요해요', '흙을 물레 위로 끌어다 놓아 주세요']);
       } else if (st.sub === 1) {
         // (2026-11-20) 피그마: 반죽 게임 중에도 슬롯 바 4칸을 그대로 보여 준다 → 인벤토리를 접지 않는다
-        if (id === 'water' && onClay) { st.wetT = 1; st.sub = 2; st.sq = 1; st.t = 0; return true; }
+        if (id === 'water' && onClay) {
+          // st.wetT = 1; st.sub = 2; st.sq = 1; st.t = 0;
+          // (2026-11-25 피그마 최종안) 흙 준비 끝 → 「1단계 완료」 팝업. 흙이 젖는 모습을 0.9초 보여 준 뒤 띄우고,
+          // 「다음으로」를 누르면 팝업만 닫고 이 화면에서 리듬 반죽(피그마 2단계)이 이어진다
+          // (2026-11-25 사용자 테스트) 바로 sub = 2 로 바꾸면 팝업이 뜨기 전 0.9초 동안 리듬 게임(배너 2·게이지)이 먼저 보였다
+          //   → 젖는 중(sub 1.5)으로 두고 배너 1·게이지 숨김, 「다음으로」를 누를 때 리듬 반죽을 시작한다 (사용자 결정 C안)
+          st.wetT = 1; st.sub = 1.5; st.sq = 1;
+          Overlay.stageDone(ctx, 1, () => { st.sub = 2; st.t = 0; }, 0.9);
+          return true;
+        }
         else if (id === 'water') Work.hint(['물이 흙에 스며들도록', '흙 위에 놓아 주세요']);
         else if (id === 'soil') Work.hint(['흙은 이미 올렸어요', '이제 물을 흙 위에 부어 주세요']);
         else Work.hint(['지금은 물이 필요해요', '물을 흙 위로 끌어다 부어 주세요']);
+      } else if (st.sub === 1.5) {
+        Work.hint(['흙이 물을 머금는 중이에요']);   // (2026-11-25) 젖는 중 (팝업이 뜨기 전 0.9초)
       } else {
         Work.hint(['반죽할 때는 재료가 필요 없어요', '초록 칸에 맞춰 반죽을 톡! 터치해요']);
       }
@@ -102,7 +114,9 @@
       st.pops.forEach((p) => { p.t += dt; });
       st.pops = st.pops.filter((p) => p.t < 0.8);
       if (st.sub >= 1) Work.setLump(ctx, R, H, P, 0.2 * (1 - c.smooth) + 0.015);
-      if (st.doneAt && !st.left && performance.now() > st.doneAt) { st.left = true; setTimeout(() => ctx.go('stage2-base'), 0); }   // 전환은 프레임 사이에서
+      // (2026-11-25) 바로 넘어가지 않고 「2단계 완료」 팝업 → 「다음으로」에서 2단계(바닥 만들기 = 피그마 3단계 시작)로
+      // 원래: setTimeout(() => ctx.go('stage2-base'), 0)   // 전환은 프레임 사이에서
+      if (st.doneAt && !st.left && performance.now() > st.doneAt) { st.left = true; Overlay.stageDone(ctx, 2, () => ctx.go('stage2-base')); }
     },
 
     draw(ctx) {

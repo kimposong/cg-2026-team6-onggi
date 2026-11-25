@@ -492,7 +492,9 @@
       }
       if (st.phase === 'fire') {
         const tip = st.level <= SAFE_MIN ? '지금 장작을 넣어요!' : st.level < SAFE_MAX ? '장작을 넣어도 괜찮아요' : '가득 찼어요! 더 넣으면 깨져요';
-        if (st.level > SAFE_MIN || Math.sin(st.t * 8) > -0.4) pill(ctx, ui.text(tip), H * 0.665, u * 0.045, u * 0.86);   // 넣을 때가 되면 깜빡인다
+        // if (st.level > SAFE_MIN || Math.sin(st.t * 8) > -0.4) pill(ctx, ui.text(tip), H * 0.665, u * 0.045, u * 0.86);   // 넣을 때가 되면 깜빡인다
+        // (2026-11-25 사용자 요청) 다른 단계 설명문과 같은 상자·글자 크기로 (Work.drawNote). 커져서 「굽는 중 %」 글자와 안 겹치게 아랫변을 0.668H 에
+        if (st.level > SAFE_MIN || Math.sin(st.t * 8) > -0.4) Work.drawNote(ctx, tip, H * 0.668, { anchor: 'bottom' });   // 넣을 때가 되면 깜빡인다
       }
 
       /* --- 결과 글 --- */
@@ -503,7 +505,10 @@
           cold:  ['식어버렸어요…', '온도가 낮으면 유약이 녹지 않아 광택이 없어요'],
           burnt: ['새까맣게 타버렸어요!', '온도가 너무 높으면 옹기가 숯처럼 타 버려요'],
         }[st.result || 'good'];
-        if (a > 0.05) { pill(ctx, ui.text(M[0]), H * 0.828, u * 0.052, u * 0.8); pill(ctx, ui.text(M[1], { weight: 400 }), H * 0.866, u * 0.034, u * 0.84); }
+        // if (a > 0.05) { pill(ctx, ui.text(M[0]), H * 0.828, u * 0.052, u * 0.8); pill(ctx, ui.text(M[1], { weight: 400 }), H * 0.866, u * 0.034, u * 0.84); }
+        // (2026-11-25 사용자 요청) 작은 알약 두 개 → 다른 단계 설명문과 같은 상자 하나·같은 글자 크기 (길면 줄바꿈).
+        // 아랫변 = 아래 버튼 윗변보다 0.03u 위 (버튼 높이 = 폭 0.333u ÷ 3)
+        if (a > 0.05) Work.drawNote(ctx, `${M[0]} ${M[1]}`, Work.bottomLayout(ctx).yBtn - u * (0.333 / 6 + 0.03), { anchor: 'bottom', alpha: a });
         if (st.result === 'good' && st.phase === 'done') {          // 반짝이
           for (let i = 0; i < 7; i++) {
             const ph = st.t * 2.2 + i * 1.7, tw = Math.max(0, Math.sin(ph)), ang = i * 0.9 + 0.5;
@@ -559,7 +564,8 @@
     if (id === 'enter' && st.phase === 'carry') { st.glide = true; st.moved = true; st.drag = false; }
     else if (id === 'wood' && st.phase === 'fire') { const l = Work.bottomLayout(ctx); feed(ctx, ctx.W / 2, l.yBtn); }
     else if (id === 'retry') retry(ctx);
-    else if (id === 'next') ctx.go('stage7-result');      // exit 가 옹기 데이터 + 구운 결과를 넘긴다
+    // (2026-11-25 피그마 최종안) 「6단계 완료」 팝업을 거쳐 넘어간다 — 실패 3번 뒤 넘어갈 때도 같은 팝업 (사용자 결정 1-4)
+    else if (id === 'next') Overlay.stageDone(ctx, 6, () => ctx.go('stage7-result'));      // exit 가 옹기 데이터 + 구운 결과를 넘긴다
   }
 
   // 밝은 알약 위에 진한 글자 (배경 벽·바닥 위에서도 잘 읽히게 — Work.drawBanner 의 안내 줄과 같은 모양)
@@ -573,7 +579,91 @@
      맨 아래 둥근 부분 = 1단계, 그 위 유리관이 2 → 3 → 4단계, 관의 천장 = 4단계(과열).
      테두리·칸 색은 가만히 있고, 수은주(지금 온도)가 서서히 내려간다.
      지금 온도보다 아래 색은 그대로, 위의 색은 반투명 → 어느 색까지 내려왔는지 한눈에 보인다 */
+  /* (2026-11-25) 팀 그림 온도계로 교체 — 아래 drawGaugeImg. 이 도형 버전(drawGaugeShapes)은 그림을 불러오기 전에만 쓴다 */
   function drawGauge(ctx, g) {
+    const ready = THERMO.layers.every((p) => ImageTex.get(ctx.gl, p).ready);
+    if (ready) drawGaugeImg(ctx); else drawGaugeShapes(ctx, g);
+  }
+
+  /* ---------- (2026-11-25) 그림 온도계: stage6-thermometer-1~5.png (같은 크기 560×1232 레이어를 겹친다) ----------
+     5 판(나무 틀·「가마 온도」·뜨거움/알맞음/낮음 이름표) → 2 액체(노랑·주황·빨강)를 지금 온도 높이까지만 잘라서
+     → 1 파란 둥근 부분(1단계) → 3 유리관 테두리. (4 = 이름표 없는 판 — 지금은 안 씀)
+     그림 속 칸: 둥근 부분 = 1단계(낮음), 노랑 = 2, 주황 = 3 (2~3 = 알맞음 괄호), 빨강 = 4(뜨거움, 한 번 더 넣으면 깨짐).
+     칸 길이가 서로 달라 온도 → 높이는 칸 경계(THERMO.y)를 잇는 꺾은선으로 바꾼다 */
+  const THERMO = {
+    layers: [1, 2, 3, 4, 5].map((i) => `./assets/stages/stage6/stage6-thermometer-${i}.png`),
+    W: 560, H: 1232,                          // 그림 크기 (px) — 아래 좌표는 모두 이 그림의 픽셀
+    y: [1005, 782, 508, 195],                 // 온도 1·2·3·4 의 액체 윗면 높이 (1 = 관이 비어 둥근 부분만, 4 = 관 천장 끝)
+    tubeX: 206, tubeW: 72,                    // 유리관 가운데·굵기
+    bulbY: 1082, bulbD: 164,                  // 둥근 부분 가운데·지름
+  };
+  function drawGaugeImg(ctx) {
+    const { W, H, ui } = ctx, u = frameU(ctx), pw = GAUGE.w * u;
+    const [tCold, tLiquid, tGlass, , tPanel] = THERMO.layers.map((p) => ImageTex.get(ctx.gl, p));
+    const rt = st.result ? st.resT : 0, burnt = st.result === 'burnt', cold = st.result === 'cold';
+    const hf = (i, k) => { const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };
+    const sh = burnt ? Math.sin(rt * 70) * u * 0.01 * Math.max(0, 1 - rt / 0.6) : 0;   // 깨질 때 부르르 떨린다
+    // 판: 폭은 원래 패널과 같고 높이는 그림 비율대로 (원래 패널 비율과 거의 같다)
+    const k = pw / THERMO.W, ph = THERMO.H * k;
+    const px = W / 2 + GAUGE.cx * u - pw / 2 + sh, top = GAUGE.top * H;
+    const sx = (ix) => px + ix * k, sy = (iy) => top + iy * k;               // 그림 픽셀 → 화면
+    const yOfImg = (t) => {                                                   // 온도(1~4) → 그림 속 액체 윗면 높이
+      const c = clamp(t, 1, 4), i = Math.min(2, Math.floor(c - 1)), f = c - 1 - i;
+      return lerp(THERMO.y[i], THERMO.y[i + 1], f);
+    };
+    const T = clamp(st.tempShow, 0, 4);
+    const broken = burnt && rt > 0.12, ice = cold ? smooth(0, 0.9, rt) : 0;
+    const blink = st.warn ? 0.5 + 0.5 * Math.sin(st.t * 18) : 1;
+    const yCut = broken ? yOfImg(3.55) : 0;                                   // 깨지면 그 위쪽(관 윗부분)이 사라진다
+
+    ui.drawImage(tPanel, px, top, pw, ph);
+    // 액체: 지금 온도 높이 ~ 관 아래 끝까지만 잘라 그린다 (아래 끝은 둥근 부분과 겹치는 곳까지)
+    const yLiq = Math.max(yOfImg(T), yCut), yLiqBot = THERMO.y[0] + 8;
+    if (T > 1.01 && yLiq < yLiqBot) ui.drawImagePart(tLiquid, px, sy(yLiq), pw, (yLiqBot - yLiq) * k, [0, yLiq / THERMO.H, 1, yLiqBot / THERMO.H]);
+    // 둥근 부분(1단계): 온도가 1 이상이면 진하게, 식어서 0 으로 가면 흐려진다
+    ui.drawImage(tCold, px, top, pw, ph, [1, 1, 1, clamp(T, 0.3, 1)]);
+    // 유리관 테두리 (깨지면 위쪽을 잘라 낸다)
+    if (broken) ui.drawImagePart(tGlass, px, sy(yCut), pw, (THERMO.H - yCut) * k, [0, yCut / THERMO.H, 1, 1]);
+    else ui.drawImage(tGlass, px, top, pw, ph);
+
+    const tx = sx(THERMO.tubeX), tw = THERMO.tubeW * k, cyb = sy(THERMO.bulbY), bd = THERMO.bulbD * k;
+    // 액체 윗면: 지금 온도 — 곧 식으면 깜빡인다
+    if (T > 1.01 && !broken) ui.rect(tx - tw / 2, sy(yOfImg(T)) - 2, tw, 4, [1, 1, 1, 0.9 * blink]);
+
+    // 깨짐: 들쭉날쭉한 단면 + 유리 조각 + 튀는 붉은 액체 (도형 버전과 같은 연출)
+    if (broken) {
+      const bt = rt - 0.12, yT = sy(yCut), dark = [0.25, 0.14, 0.09, 1];
+      for (let i = 0; i < 5; i++) ui.circle(tx - tw * 0.36 + tw * 0.18 * i, yT - (hf(i, 1) - 0.2) * tw * 0.35, tw * (0.2 + 0.12 * hf(i, 2)), dark);
+      for (let i = 0; i < 16; i++) {
+        const vx = (hf(i, 3) - 0.5) * u * 0.55, vy = -u * (0.18 + 0.4 * hf(i, 4)), life = 1.1 + hf(i, 5) * 0.5;
+        if (bt > life) continue;
+        const x = tx + vx * bt, y = yT + vy * bt + u * 0.9 * bt * bt, a = 1 - smooth(life * 0.6, life, bt), sz = u * (0.008 + 0.012 * hf(i, 6));
+        if (i < 9) ui.rect(x - sz, y - sz * 0.5, sz * 2, sz, [0.95, 0.97, 1, 0.9 * a], sz * 0.2);   // 유리 조각
+        else ui.circle(x, y, sz * 1.3, [0.9, 0.12, 0.1, 0.95 * a]);                                  // 붉은 액체
+      }
+      const dr = smooth(0.2, 1.0, bt);                                                              // 단면에서 흘러내리는 액체
+      if (dr > 0) ui.rect(tx - tw * 0.22, yT, tw * 0.44, (sy(yOfImg(3.2)) - yT) * dr, [0.85, 0.12, 0.1, 0.9], tw * 0.2);
+    }
+    if (burnt && rt < 0.18) ui.rect(px, top, pw, ph, [1, 1, 1, 0.8 * (1 - rt / 0.18)], u * 0.025);   // 번쩍
+    // 얼음: 관과 둥근 부분이 하얗게 얼고 서리·고드름이 생긴다
+    if (ice > 0) {
+      const yTop = sy(THERMO.y[3]);
+      ui.rect(tx - tw / 2, yTop, tw, cyb - yTop, [0.75, 0.92, 1, 0.55 * ice], tw / 2);
+      ui.circle(tx, cyb, bd, [0.75, 0.92, 1, 0.5 * ice]);
+      for (let i = 0; i < 9; i++) {
+        const x = tx + (hf(i, 7) - 0.5) * tw * 0.8, y = lerp(yTop + tw * 0.5, cyb, hf(i, 8)), r = u * (0.006 + 0.006 * hf(i, 9)) * ice, tws = 0.6 + 0.4 * Math.sin(st.t * 4 + i * 2);
+        ui.rect(x - r, y - r * 0.18, r * 2, r * 0.36, [1, 1, 1, 0.9 * tws * ice]);
+        ui.rect(x - r * 0.18, y - r, r * 0.36, r * 2, [1, 1, 1, 0.9 * tws * ice]);
+      }
+      for (let i = 0; i < 6; i++) {                                                                 // 판 위에 매달린 고드름
+        const x = px + pw * (0.1 + 0.16 * i + 0.04 * hf(i, 10)), h = u * (0.03 + 0.045 * hf(i, 11)) * ice;
+        ui.rect(x - u * 0.007, top + u * 0.004, u * 0.014, h, [0.85, 0.95, 1, 0.95], u * 0.007);
+      }
+    }
+  }
+
+  /* 원래 도형 온도계 (2026-11-25 이름만 drawGauge → drawGaugeShapes) */
+  function drawGaugeShapes(ctx, g) {
     const { W, H, ui } = ctx, u = frameU(ctx), pw = GAUGE.w * u;
     const rt = st.result ? st.resT : 0, burnt = st.result === 'burnt', cold = st.result === 'cold';
     const hf = (i, k) => { const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };

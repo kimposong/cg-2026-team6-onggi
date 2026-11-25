@@ -92,7 +92,8 @@
           : ['잿물이 다 발릴 때까지', '조금만 기다려 주세요']);
         return;
       }
-      ctx.go('stage6-gama');        // exit 가 toData() 를 넘긴다
+      // (2026-11-25 피그마 최종안) 「5단계 완료」 팝업을 거쳐 넘어간다
+      Overlay.stageDone(ctx, 5, () => ctx.go('stage6-gama'));        // exit 가 toData() 를 넘긴다
     }
   }
 
