@@ -218,8 +218,38 @@
       window.scrollTo(0, 0);                           // (2026-11-25) 아이폰은 키보드가 올라올 때 화면을 밀어 올리고 안 돌려놓을 때가 있다
     });
     document.body.appendChild(input);
+    hookDebug(input);                                  // (2026-11-25) ?debug 일 때만
     return input;
   }
+  /* (2026-11-25) 진단 모드: 주소 뒤에 ?debug 를 붙이면 이름 입력칸이 받은 이벤트를 화면 위쪽에 보여 준다 (아이폰은 개발자 도구를 보기 어려워서) */
+  const DEBUG = /debug/.test(location.search);
+  const dbg = [];
+  function log(s) { if (!DEBUG) return; dbg.push(`${(performance.now() / 1000).toFixed(1)} ${s}`); if (dbg.length > 7) dbg.shift(); }
+  function hookDebug(el) {
+    if (!DEBUG) return;
+    ['touchstart', 'touchend', 'pointerdown', 'focus', 'blur'].forEach((ev) => el.addEventListener(ev, () => log(`input ${ev} active=${document.activeElement.tagName}`)));
+  }
+
+  /* (2026-11-25) 두 번째 경로: 투명 입력칸이 탭을 못 받고 캔버스가 받은 경우, 캔버스의 touchend 안에서 포커스를 건다
+     (iOS 는 touchend·click 안에서 건 focus 에는 키보드를 띄운다). 캔버스에 한 번만 붙인다 */
+  let touchHooked = false;
+  function hookCanvasTouch(ctx) {
+    if (touchHooked) return;
+    touchHooked = true;
+    const canvas = ctx.gl.canvas;
+    canvas.addEventListener('touchend', (e) => {
+      if (Scenes.current !== 'stage7-result' || st.phase !== 'card' || Overlay.blocking()) return;
+      const t = e.changedTouches[0], r = canvas.getBoundingClientRect(), k = canvas.width / r.width;
+      const x = (t.clientX - r.left) * k, y = (t.clientY - r.top) * k;
+      log(`canvas touchend name=${inNameBox(ctx, x, y)}`);
+      if (!inNameBox(ctx, x, y)) return;
+      const el = getInput();
+      if (el.style.display === 'none') el.style.display = 'block';
+      el.focus();
+      log(`focus() → active=${document.activeElement.tagName}`);
+    });
+  }
+
   /** (2026-11-25) 투명 입력칸을 카드의 이름 칸 위에 맞춘다 (카드 화면에서 팝업이 없을 때만 보임). 캔버스 픽셀 → CSS 픽셀 */
   function placeInput(ctx, show) {
     const el = getInput();
@@ -306,6 +336,8 @@
       Work.resetView();
       Work.view.panEnabled = true;                     // 4단계와 같은 조작: 돌리기·줌·상하 이동 (3-7)
       Work.setShift(Work.SHIFT_Y_LOW);                 // 아래가 버튼 한 줄뿐이라 4단계처럼 장면을 내린다
+      hookCanvasTouch(ctx);                            // (2026-11-25) 이름 칸 포커스 두 번째 경로 (touchend)
+      getInput();
     },
 
     update(ctx, dt) {
@@ -361,13 +393,21 @@
         ui.imageButton(pressed ? { ...b, w: b.w * 0.95, h: b.h * 0.95 } : b);
       }
       if (st.flash > 0) ui.rect(0, 0, W, H, [1, 1, 1, st.flash * 0.9]);   // 찰칵!
+      // (2026-11-25) 진단 모드: 입력칸 위치·상태 + 최근 이벤트
+      if (DEBUG) {
+        const el = getInput(), u = frameUnit(ctx);
+        const lines = [`v37+ input ${el.style.display} ${el.style.left},${el.style.top} ${el.style.width}x${el.style.height}`,
+          `active=${document.activeElement.tagName} editing=${st.editing}`, ...dbg];
+        ui.rect(0, 0, W, u * 0.05 * (lines.length + 0.5), [0, 0, 0, 0.7]);
+        lines.forEach((l, i) => ui.drawText(ui.dynText(`dbg${i}`, l, { weight: 400 }), u * 0.02, u * 0.05 * (i + 0.8), u * 0.04, 'left', W * 0.96, [1, 1, 0.6, 1]));
+      }
     },
 
     // 버튼·이름 칸은 손을 뗄 때(up) 실행한다 — 휴대폰은 pointerup 에서만 "사용자가 누름"으로 쳐서 키보드·공유 창이 열린다
     down(ctx, x, y, type) {
       const b = st.buttons.find((bb) => ctx.ui.hit(bb, x, y));
       if (b) { st.press = b.id; return; }
-      if (st.phase === 'card') { st.press = inNameBox(ctx, x, y) ? 'name' : 'empty'; return; }
+      if (st.phase === 'card') { st.press = inNameBox(ctx, x, y) ? 'name' : 'empty'; log(`canvas down ${st.press}`); return; }
       Work.down(ctx, x, y, type, cb);                 // 촬영: 빈 곳 드래그 = 물레 돌리기 / 상하 이동
     },
     move(ctx, x, y) { if (!st.press) Work.move(ctx, x, y); },
