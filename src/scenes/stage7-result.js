@@ -197,16 +197,36 @@
     input.autocomplete = 'off';
     input.setAttribute('enterkeyhint', 'done');
     // 보이지 않게 (opacity 0). 글자 크기 16px 미만이면 아이폰이 화면을 확대해 버려서 16px
-    Object.assign(input.style, { position: 'fixed', left: '0px', top: '0px', width: '10px', height: '10px',
-      opacity: '0', fontSize: '16px', border: '0', padding: '0', margin: '0', zIndex: '-1' });
+    // Object.assign(input.style, { position: 'fixed', left: '0px', top: '0px', width: '10px', height: '10px',
+    //   opacity: '0', fontSize: '16px', border: '0', padding: '0', margin: '0', zIndex: '-1' });
+    // (2026-11-25 아이폰 테스트) 코드로 focus() 를 거는 방식은 iOS(아이폰은 크롬도 사파리 엔진)에서 키보드가 뜨지 않았다
+    //   — iOS 는 touchend·click 같은 이벤트 안에서만 코드 focus 에 키보드를 띄운다.
+    //   → 투명한 입력칸을 **캔버스 위, 카드의 이름 칸 자리에 겹쳐** 두고 사용자가 직접 탭하게 한다 (모든 기기에서 브라우저가 키보드를 띄운다).
+    //   자리는 매 프레임 placeInput 이 맞춘다. 글자·커서는 보이지 않게(투명) 하고, 화면에는 캔버스 카드가 그린다
+    Object.assign(input.style, { position: 'fixed', left: '0px', top: '0px', width: '10px', height: '10px', display: 'none',
+      opacity: '0.01', color: 'transparent', caretColor: 'transparent', background: 'transparent', outline: 'none',
+      fontSize: '16px', border: '0', padding: '0', margin: '0', zIndex: '10', touchAction: 'manipulation' });
     input.addEventListener('input', () => { st.name = input.value.slice(0, NAME_MAX); st.cardDirty = true; st.blink = 0; });
     input.addEventListener('keydown', (e) => {
       e.stopPropagation();                             // 적는 동안 ESC 가 일시정지로 가지 않게 (main.js 의 window keydown)
       if (e.key === 'Enter' || e.key === 'Escape') input.blur();
     });
-    input.addEventListener('blur', () => { st.editing = false; st.cardDirty = true; });
+    // (2026-11-25) 사용자가 입력칸을 직접 탭해 포커스가 오면 "적는 중"
+    input.addEventListener('focus', () => { st.editing = true; st.cardDirty = true; st.blink = 0; });
+    input.addEventListener('blur', () => {
+      st.editing = false; st.cardDirty = true;
+      window.scrollTo(0, 0);                           // (2026-11-25) 아이폰은 키보드가 올라올 때 화면을 밀어 올리고 안 돌려놓을 때가 있다
+    });
     document.body.appendChild(input);
     return input;
+  }
+  /** (2026-11-25) 투명 입력칸을 카드의 이름 칸 위에 맞춘다 (카드 화면에서 팝업이 없을 때만 보임). 캔버스 픽셀 → CSS 픽셀 */
+  function placeInput(ctx, show) {
+    const el = getInput();
+    if (!show) { if (el.style.display !== 'none') { if (document.activeElement === el) el.blur(); el.style.display = 'none'; } return; }
+    const canvas = ctx.gl.canvas, k = canvas.clientWidth / canvas.width, r = cardRect(ctx), b = CARD.name.box, p = toScreen(r, b.x, b.y);
+    Object.assign(el.style, { display: 'block', left: `${p.x * k}px`, top: `${p.y * k}px`, width: `${b.w * r.k * k}px`, height: `${b.h * r.k * k}px` });
+    if (document.activeElement !== el && el.value !== st.name) el.value = st.name;
   }
   function startEdit(ctx) {
     const el = getInput(), canvas = ctx.gl.canvas;
@@ -305,6 +325,8 @@
       st.blink += dt;
       // 주아체를 늦게 받으면 카드 글자를 다시 그린다
       if (ctx.fontSub && ctx.fontSub.ready && !st.fontReady) { st.fontReady = true; st.cardDirty = true; }
+      // (2026-11-25) 투명 입력칸: 카드가 다 나온 뒤, 팝업(일시정지)이 없을 때만 이름 칸 위에 둔다
+      placeInput(ctx, st.phase === 'card' && st.cardIn >= 1);
       if (st.phase === 'card' && st.cardDirty) {
         st.cardCanvas = renderCard(ctx, DISPLAY_SCALE, false, st.cardCanvas);
         st.cardTex = ImageTex.fromCanvas(ctx.gl, st.cardCanvas, st.cardTex);
@@ -360,10 +382,11 @@
     },
     wheel(ctx, x, y, dy) { if (st.phase === 'shoot') Work.zoomBy(Math.exp(dy * 0.0012)); },
     pinch(ctx, factor) { if (st.phase === 'shoot') Work.zoomBy(1 / factor); },
-    cancel(ctx) { Work.cancel(); st.press = null; stopEdit(); },   // 일시정지가 열릴 때도 불린다 → 키보드를 내린다
+    cancel(ctx) { Work.cancel(); st.press = null; stopEdit(); placeInput(ctx, false); },   // 일시정지가 열릴 때도 불린다 → 키보드를 내리고 입력칸을 숨긴다 (팝업 위 탭을 가로채지 않게, 풀리면 update 가 다시 둔다)
 
     exit(ctx) {
       stopEdit();
+      placeInput(ctx, false);                          // (2026-11-25) 다른 화면에서는 입력칸을 숨긴다
       Work.setZoom(1);
       Work.resetView();
       Work.setShift(Work.SHIFT_Y);
