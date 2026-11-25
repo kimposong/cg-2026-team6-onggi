@@ -24,38 +24,40 @@
   <script src="https://cdn.jsdelivr.net/npm/gl-matrix@3.4.3/gl-matrix-min.js"></script>
 
   <!-- 순서가 중요하다: 뒤 파일이 앞 파일의 객체를 쓴다 -->
+  <!-- (2026-11-25) ?v=번호 = 캐시 무시용. GitHub Pages 는 파일을 10분 캐시하라고 보내서 휴대폰이 예전 js 를 계속 썼다.
+       코드를 바꿔 올릴 때 이 번호와 main.js 의 BUILD 를 같이 올린다 (화면 맨 위 가운데에 BUILD 가 보인다) -->
   <!-- core: 어느 화면이든 쓰는 도구 (엔진 역할). 특정 화면 전용 코드는 넣지 않는다 -->
-  <script src="./src/core/program.js"></script>
-  <script src="./src/core/text.js"></script>
-  <script src="./src/core/image.js"></script>
-  <script src="./src/core/mesh.js"></script>
-  <script src="./src/core/camera.js"></script>
-  <script src="./src/core/ui.js"></script>
-  <script src="./src/core/input.js"></script>
+  <script src="./src/core/program.js?v=39"></script>
+  <script src="./src/core/text.js?v=39"></script>
+  <script src="./src/core/image.js?v=39"></script>
+  <script src="./src/core/mesh.js?v=39"></script>
+  <script src="./src/core/camera.js?v=39"></script>
+  <script src="./src/core/ui.js?v=39"></script>
+  <script src="./src/core/input.js?v=39"></script>
 
   <!-- shared: 두 화면 이상이 같이 쓰는 셰이더·소품 -->
-  <script src="./src/shared/potShader.js"></script>
-  <script src="./src/shared/wheel.js"></script>
+  <script src="./src/shared/potShader.js?v=39"></script>
+  <script src="./src/shared/wheel.js?v=39"></script>
 
   <!-- pot: 옹기를 만드는 공통 틀 -->
-  <script src="./src/pot/pot.js"></script>
-  <script src="./src/shared/workbench.js"></script>
+  <script src="./src/pot/pot.js?v=39"></script>
+  <script src="./src/shared/workbench.js?v=39"></script>
   <!-- (2026-11-25) 모든 화면 위에 덮는 층: 단계 완료 팝업 + 일시정지 (Scenes·Work 를 쓴다 — 함수 안에서만 부르므로 순서는 여기면 된다) -->
-  <script src="./src/shared/overlay.js"></script>
+  <script src="./src/shared/overlay.js?v=39"></script>
 
   <!-- scenes: 화면마다 하나. 화면 전용 셰이더·메시는 그 파일 안에 -->
-  <script src="./src/scenes/scenes.js"></script>
-  <script src="./src/scenes/start.js"></script>
-  <script src="./src/scenes/stage1-knead-bar.js"></script>
-  <script src="./src/scenes/stage2-base.js"></script>
-  <script src="./src/scenes/stage3-stack.js"></script>
-  <script src="./src/scenes/stage4-decorate.js"></script>
-  <script src="./src/scenes/stage5-glaze.js"></script>
-  <script src="./src/scenes/stage6-gama.js"></script>
-  <script src="./src/scenes/stage7-result.js"></script>
-  <script src="./src/scenes/ending.js"></script>   <!-- (2026-11-25) 마무리 화면 「옹기장이가 되었어요!」 -->
-  <script src="./src/scenes/gallery/gallery.js"></script>
+  <script src="./src/scenes/scenes.js?v=39"></script>
+  <script src="./src/scenes/start.js?v=39"></script>
+  <script src="./src/scenes/stage1-knead-bar.js?v=39"></script>
+  <script src="./src/scenes/stage2-base.js?v=39"></script>
+  <script src="./src/scenes/stage3-stack.js?v=39"></script>
+  <script src="./src/scenes/stage4-decorate.js?v=39"></script>
+  <script src="./src/scenes/stage5-glaze.js?v=39"></script>
+  <script src="./src/scenes/stage6-gama.js?v=39"></script>
+  <script src="./src/scenes/stage7-result.js?v=39"></script>
+  <script src="./src/scenes/ending.js?v=39"></script>   <!-- (2026-11-25) 마무리 화면 「옹기장이가 되었어요!」 -->
+  <script src="./src/scenes/gallery/gallery.js?v=39"></script>
 
-  <script src="./src/main.js"></script>
+  <script src="./src/main.js?v=39"></script>
 </body>
 </html>

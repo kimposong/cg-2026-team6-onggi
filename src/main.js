@@ -30,6 +30,8 @@
   };
 
   const perf = { acc: 0, count: 0, shown: '' };
+  // (2026-11-25) 빌드 번호 — index.html 의 script ?v= 번호와 같게 올린다. 화면 맨 위 가운데에 보여 휴대폰에 새 코드가 들어왔는지 확인할 수 있다
+  const BUILD = 'v39';
 
   /* ---------- 화면 크기 ---------- */
   function resize() {
@@ -90,7 +92,7 @@
     // 프레임 시간 (성능 측정, 12주차 기준 16.7ms 이하) — 모든 화면 공통
     // (2026-11-25) 오른쪽 위는 일시정지 버튼 자리라 왼쪽 위로 옮김
     // → (2026-11-25) 왼쪽 위는 시작 화면 「처음으로」 버튼·표찰 자리라 위쪽 가운데로
-    ctx.ui.drawText(ctx.ui.dynText('ms', perf.shown), ctx.W / 2, ctx.s * 0.03, ctx.s * 0.03, 'center', Infinity, [1, 1, 1, 0.5]);
+    ctx.ui.drawText(ctx.ui.dynText('ms', `${BUILD} · ${perf.shown}`), ctx.W / 2, ctx.s * 0.03, ctx.s * 0.03, 'center', Infinity, [1, 1, 1, 0.5]);
 
     requestAnimationFrame(frame);
   }

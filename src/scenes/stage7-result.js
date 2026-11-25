@@ -405,7 +405,7 @@
       // (2026-11-25) 진단 모드: 입력칸 위치·상태 + 최근 이벤트
       if (DEBUG) {
         const el = getInput(), u = frameUnit(ctx);
-        const lines = [`v38 input ${el.style.display} ${el.style.left},${el.style.top} ${el.style.width}x${el.style.height}`,
+        const lines = [`v39 input ${el.style.display} ${el.style.left},${el.style.top} ${el.style.width}x${el.style.height}`,
           `active=${document.activeElement.tagName} editing=${st.editing}`, ...dbg];
         ui.rect(0, 0, W, u * 0.05 * (lines.length + 0.5), [0, 0, 0, 0.7]);
         lines.forEach((l, i) => ui.drawText(ui.dynText(`dbg${i}`, l, { weight: 400 }), u * 0.02, u * 0.05 * (i + 0.8), u * 0.04, 'left', W * 0.96, [1, 1, 0.6, 1]));
