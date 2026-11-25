@@ -31,7 +31,7 @@
 
   const perf = { acc: 0, count: 0, shown: '' };
   // (2026-11-25) 빌드 번호 — index.html 의 script ?v= 번호와 같게 올린다. 화면 맨 위 가운데에 보여 휴대폰에 새 코드가 들어왔는지 확인할 수 있다
-  const BUILD = 'v39';
+  const BUILD = 'v40';
 
   /* ---------- 화면 크기 ---------- */
   function resize() {
