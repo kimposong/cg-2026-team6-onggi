@@ -9,7 +9,8 @@ const Overlay = (() => {
   /* ---------- 설정: 숫자만 바꾸면 된다 ---------- */
   const NEXT_DELAY = 1.5;           // 완료 팝업의 「다음으로」가 눌리기까지 기다리는 시간(초) — 사용자 결정 1-1 B (글을 읽을 틈)
   const APPEAR = 0.25;              // 팝업이 튀어나오는 연출 시간(초)
-  const RESTART_SCENE = 'stage1-knead';   // 「처음부터 다시」 목적지 — 시작 화면이 완성되면 'start' 로 바꾼다 (2-2 추천안)
+  // const RESTART_SCENE = 'stage1-knead';   // 「처음부터 다시」 목적지 — 시작 화면이 완성되면 'start' 로 바꾼다 (2-2 추천안)
+  const RESTART_SCENE = 'start';           // (2026-11-25) 시작 화면 완성(sub 병합) → 처음 화면으로 (사용자 결정 2-2 A)
 
   const IMG = {
     done: (n) => `./assets/ui/popups/popup-stage${n}-complete.png`,

@@ -89,7 +89,8 @@
     Overlay.drawUI(ctx);
     // 프레임 시간 (성능 측정, 12주차 기준 16.7ms 이하) — 모든 화면 공통
     // (2026-11-25) 오른쪽 위는 일시정지 버튼 자리라 왼쪽 위로 옮김
-    ctx.ui.drawText(ctx.ui.dynText('ms', perf.shown), ctx.s * 0.03, ctx.s * 0.03, ctx.s * 0.03, 'left', Infinity, [1, 1, 1, 0.5]);
+    // → (2026-11-25) 왼쪽 위는 시작 화면 「처음으로」 버튼·표찰 자리라 위쪽 가운데로
+    ctx.ui.drawText(ctx.ui.dynText('ms', perf.shown), ctx.W / 2, ctx.s * 0.03, ctx.s * 0.03, 'center', Infinity, [1, 1, 1, 0.5]);
 
     requestAnimationFrame(frame);
   }
@@ -118,6 +119,7 @@
 
   resize();
   // 지금은 4단계만 만들어져 있으므로 바로 4단계로 시작한다. 시작 화면이 완성되면 'start' 로 바꾼다
+  // → (2026-11-25) 시작 화면 완성 (팀원 JAEWON LEE, sub 병합) — 'start' 로 시작한다
   Scenes.go(ctx, 'start');
   requestAnimationFrame(frame);
 })();
