@@ -32,6 +32,7 @@
 - 2026-11-24 (Claude Code, 4단계 정리): ① 4단계는 재료를 안 쓰므로 **슬롯 바를 접어 숨김** (`setInventory(ALL_ITEMS, false)`, 5단계가 다시 펼침) → **굵기 슬라이더·물레 버튼 줄을 슬롯 바 자리로 내림** (`FIG.rowY` 0.706 → 0.826H) ② **커서를 조각칼 → 대나무 도구 그림**(`stage4-cursor-bamboo-tool.png`)으로. 그림 속 칼끝 `TOOL_TIP` (0.04, 0.158) = 포인터, 크기 `TOOL_SIZE` s×0.24. 그림 전에는 원래 조각칼 (7-5).
 - 2026-11-24 (Claude Code, 휴대폰 테스트): 모바일 크롬에서 주소창·아래 탭 때문에 아래 버튼이 안 보이던 문제 → **캔버스 높이 `100vh` → `100dvh`** (`index.html` CSS, 옛 브라우저는 100vh 그대로). 바는 그대로 보이고 캔버스가 보이는 영역에 맞춰진다 (9장, 8-7). 전체 화면 API(안드로이드만 바 숨김)는 적용 안 함.
 - 2026-11-25 (Claude Code, 에셋 2차): 팀이 `assets/` 맨 위에 올린 그림 67개 정리 — **기존과 바이트까지 같은 29개 삭제**, 새 그림 38개를 영어 이름으로 바꿔 분류 (8-1-1): 완료·일시정지 팝업 → `ui/popups/`, 버튼 7개 → `ui/buttons/`, 시작 전 배너 → `ui/banners/banner-intro.png`, 온도계 5개 → `stages/stage6/`, 카드 틀 → `stages/stage7/`, 박물관 옹기 카드 5장 → `cards/`, 시작·설명·로딩·마지막 화면 → `screens/`. 코드 적용은 아직. 용량 약 46MB (13장).
+- 2026-11-25 (Claude Code, 휴대폰 키보드): 사용자 휴대폰 테스트 — 7단계 이름 칸을 눌러도 키보드가 안 뜸. 원인: 터치는 pointerup 뒤에 **호환용 mousedown** 이 와서 "탭한 곳(캔버스)으로 포커스 옮기기" 기본 동작이 pointerup 때 잡은 입력칸 포커스를 빼앗았다 (마우스는 mousedown 이 먼저라 PC·데스크톱 테스트에서는 안 보임 — AI가 틀린 사례). **`core/input.js` pointerdown 에서 터치일 때 `preventDefault()`** → 호환 마우스 이벤트가 오지 않음. Playwright 터치 흉내(hasTouch·isMobile)로 고치기 전 BODY → 고친 뒤 INPUT 포커스 확인. 실기기 확인은 사용자 몫.
 - 2026-11-25 (Claude Code, 병합): **`sub` 브랜치의 시작 화면(팀원 JAEWON LEE) 을 `main` 에 병합** (7-10) — 홈 카드 넘기기·카드 크게 보기·7단계 설명·로딩, 첫 화면이 `start`. 충돌 없음. 이어서 일시정지 「처음부터 다시」 → `start`, `ms/frame` 글자 위쪽 가운데로. 이제 안 쓰는 에셋은 `stage6-thermometer-4` 하나.
 - 2026-11-25 (Claude Code, 6단계 설명문): 사용자 요청 — 6단계 아래쪽 글(불 때기 안내 「지금 장작을 넣어요!」, 결과 「식어버렸어요… + 설명」)이 작은 알약(제목·설명 두 줄)이라 다른 설명문과 달랐다 → **배너 아래 설명문 상자를 `Work.drawNote(ctx, str, y, opt)` 로 빼서** 같은 모양(주아체, 글자 높이 `SUB_TEXT_H`, 상자 하나, 길면 줄바꿈)으로 어디에든 그린다 (8-6). 결과 글은 제목+설명을 한 문장으로 이어 상자 하나 (아랫변 = 아래 버튼 위 0.03u), 안내는 아랫변 0.668H (커져서 「굽는 중 %」와 안 겹치게). `drawBanner` 는 `drawNote` 를 부르도록 바뀌었을 뿐 모양 같음. 줄바꿈을 잴 글자 크기를 실제 텍스처 크기(`dynText` 56 / `text` 72)에 맞춤 — 다르면 줄이 최대 폭을 살짝 넘어 글자가 줄어들었다. 「굽는 중 %」 막대 이름표는 그대로(작은 알약).
 - 2026-11-25 (Claude Code, 온도계 그림): **6단계 온도계를 팀 그림 `stage6-thermometer-1~5` 레이어로 교체** (7-7) — 판 → 액체(지금 온도까지 잘라서) → 파란 둥근 부분 → 유리관 테두리. 그림 일부를 그리는 `ui.drawImagePart` 를 core/ui.js 에 추가 (UI 셰이더 `uPart`). 깨짐·얼음 연출 유지, 원래 도형 온도계는 그림 전 대체용.
@@ -739,7 +740,7 @@ Scenes.register('이름', {
 - 흙 덩어리: `setLump(ctx, R, H, p, amp)`(초타원 회전체 + 울퉁불퉁), `drawLump(ctx, wet, k, sq)`
 - 쌓이는 벽 (2026-11-16 변경): `setWall(ctx, base, radii, heights, top)` — 올린 단의 반지름·높이만 받아 매번 단면을 다시 계산, `drawWall(ctx, sq, hl?)` — `hl = { activeV, bandHalf }` 로 선택 단 강조, 물레를 따라 회전
 
-**`Input`** (core/input.js) — `Input.setup(canvas, { down, move, up, hover, wheel?, pinch?, cancel? })`, 조작은 한 손가락만, `setPointerCapture`, contextmenu 차단, CSS→캔버스 픽셀 = `× canvas.width / rect.width`
+**`Input`** (core/input.js) — (2026-11-25) 터치 pointerdown 은 `preventDefault()` (호환 mousedown 이 입력칸 포커스를 빼앗지 않게 — 마우스는 그대로). `Input.setup(canvas, { down, move, up, hover, wheel?, pinch?, cancel? })`, 조작은 한 손가락만, `setPointerCapture`, contextmenu 차단, CSS→캔버스 픽셀 = `× canvas.width / rect.width`
 - (2026-11-16 추가) `wheel(x, y, deltaY)` — 마우스 휠, 페이지 스크롤 막음(`passive: false`). `pinch(factor, cx, cy)` — 두 손가락 사이 거리가 직전보다 `factor` 배. 두 번째 손가락이 닿으면 `cancel()` 을 보내고 한 손가락 조작을 끊는다. `main.js` 가 `Scenes.call('wheel' | 'pinch' | 'cancel', …)` 로 전달 (화면 약속에 선택 함수로 추가)
 
 ### 8-7. index.html 의 CSS (허용된 최소)
@@ -776,6 +777,7 @@ Scenes.register('이름', {
 | 가이드가 안 보인다 | 깊이 테스트 켠 채로 그림 | `stage3-stack.js` `draw` |
 | 배경 그림·글자가 반투명(채도 낮음) | UI 셰이더 둥근 사각형 거리식에서 안쪽 거리 `min(max(q.x,q.y),0)` 누락 → 둥글기 0이면 안쪽 a = 0.5 (2026-11-20 수정) | `core/ui.js` `UI_FS` |
 | 글자가 위아래 뒤집힘 | `UNPACK_FLIP_Y` 와 UI UV 불일치 | `core/text.js`, `core/ui.js` |
+| 휴대폰에서 이름 칸을 눌러도 키보드가 안 뜸 (PC 는 됨) | 터치의 호환용 mousedown 이 pointerup 때 잡은 입력칸 포커스를 캔버스로 빼앗음 → 터치 pointerdown 에서 `preventDefault` (2026-11-25) | `core/input.js` |
 | 휴대폰에서 엉뚱한 곳이 눌림 | CSS → 캔버스 픽셀 변환 누락 | `core/input.js` |
 | 위에서 볼 때 화면이 뒤집힘 | pitch가 90°에 닿음 | (자유 회전 카메라를 다시 쓸 때) `camCfg.pitch` 제한 — 이전 `stage4-shape.js` `CAM.PITCH_MAX` 참고 |
 | `... has already been declared` | 파일 최상위 이름 충돌 (IIFE 밖에 const) | 해당 파일 |

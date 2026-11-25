@@ -24,6 +24,11 @@ const Input = (() => {
     let pinchDist = 0;           // 직전 프레임의 두 손가락 사이 거리 (0 = 핀치 중 아님)
 
     canvas.addEventListener('pointerdown', (e) => {
+      // (2026-11-25 휴대폰 테스트) 터치는 pointerup 뒤에 호환용 mousedown 이 따라오는데, 그 기본 동작이 "탭한 곳(캔버스)으로 포커스 옮기기"라
+      // 7단계에서 pointerup 때 잡아 둔 이름 입력칸의 포커스를 빼앗아 휴대폰 키보드가 뜨지 않았다.
+      // pointerdown 에서 막으면 호환용 마우스 이벤트가 오지 않는다 (스크롤·확대는 원래 CSS touch-action: none 으로 막혀 있다).
+      // 마우스는 막지 않는다 — 막으면 PC 에서 캔버스를 눌러도 창에 포커스가 안 와 ESC 키가 안 먹을 수 있다
+      if (e.pointerType !== 'mouse') e.preventDefault();
       const p = toPx(e);
       if (e.pointerType !== 'mouse') touches.set(e.pointerId, p);
 
