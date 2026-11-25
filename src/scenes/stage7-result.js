@@ -224,10 +224,10 @@
   /* (2026-11-25) 진단 모드: 주소 뒤에 ?debug 를 붙이면 이름 입력칸이 받은 이벤트를 화면 위쪽에 보여 준다 (아이폰은 개발자 도구를 보기 어려워서) */
   const DEBUG = /debug/.test(location.search);
   const dbg = [];
-  function log(s) { if (!DEBUG) return; dbg.push(`${(performance.now() / 1000).toFixed(1)} ${s}`); if (dbg.length > 7) dbg.shift(); }
+  function log(s) { if (!DEBUG) return; dbg.push(`${(performance.now() / 1000).toFixed(2)} ${s}`); if (dbg.length > 9) dbg.shift(); }
   function hookDebug(el) {
     if (!DEBUG) return;
-    ['touchstart', 'touchend', 'pointerdown', 'focus', 'blur'].forEach((ev) => el.addEventListener(ev, () => log(`input ${ev} active=${document.activeElement.tagName}`)));
+    ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'focus', 'blur'].forEach((ev) => el.addEventListener(ev, () => log(`input ${ev} active=${document.activeElement.tagName}`)));
   }
 
   /* (2026-11-25) 두 번째 경로: 투명 입력칸이 탭을 못 받고 캔버스가 받은 경우, 캔버스의 touchend 안에서 포커스를 건다
@@ -243,10 +243,19 @@
       const x = (t.clientX - r.left) * k, y = (t.clientY - r.top) * k;
       log(`canvas touchend name=${inNameBox(ctx, x, y)}`);
       if (!inNameBox(ctx, x, y)) return;
+      // (2026-11-25 아이폰: 키보드가 뜨려다 0.1초 만에 사라짐) iOS 는 손을 뗀 뒤 흉내 mousedown·click 을 보내는데,
+      // 그 mousedown 이 포커스를 캔버스로 옮겨 입력칸이 바로 blur 됐다. touchend 에서 preventDefault 하면 흉내 마우스 이벤트가 취소된다
+      e.preventDefault();
       const el = getInput();
       if (el.style.display === 'none') el.style.display = 'block';
       el.focus();
       log(`focus() → active=${document.activeElement.tagName}`);
+    });
+    // (2026-11-25) 이름을 적는 중에는 캔버스의 mousedown 기본 동작(포커스 옮기기)을 막는다 — 어떤 경로의 흉내 mousedown 도 입력칸 포커스를 못 빼앗게.
+    // 적는 중에 빈 곳을 누르면 우리 코드(up 의 'empty' → stopEdit)가 직접 내린다
+    canvas.addEventListener('mousedown', (e) => {
+      log(`canvas mousedown editing=${st.editing}`);
+      if (Scenes.current === 'stage7-result' && input && document.activeElement === input) e.preventDefault();
     });
   }
 
@@ -396,7 +405,7 @@
       // (2026-11-25) 진단 모드: 입력칸 위치·상태 + 최근 이벤트
       if (DEBUG) {
         const el = getInput(), u = frameUnit(ctx);
-        const lines = [`v37+ input ${el.style.display} ${el.style.left},${el.style.top} ${el.style.width}x${el.style.height}`,
+        const lines = [`v38 input ${el.style.display} ${el.style.left},${el.style.top} ${el.style.width}x${el.style.height}`,
           `active=${document.activeElement.tagName} editing=${st.editing}`, ...dbg];
         ui.rect(0, 0, W, u * 0.05 * (lines.length + 0.5), [0, 0, 0, 0.7]);
         lines.forEach((l, i) => ui.drawText(ui.dynText(`dbg${i}`, l, { weight: 400 }), u * 0.02, u * 0.05 * (i + 0.8), u * 0.04, 'left', W * 0.96, [1, 1, 0.6, 1]));
