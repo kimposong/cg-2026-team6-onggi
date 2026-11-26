@@ -23,20 +23,19 @@
 
 | 자료 | 출처 | 라이선스 | 사용 위치 |
 |---|---|---|---|
-| **화면 그림 전체** — 배경 `backgrounds/`, 배너·버튼·팝업·재료 칸 `ui/`, 재료 `items/`, 단계별 그림 `stages/`(게이지, 슬라이더·대나무 도구 커서, 잿물 색 원, 가마·불·온도계, 「나만의 옹기카드」 틀), 시작·설명·로딩·마무리 화면 `screens/`, 박물관 옹기 카드의 디자인(틀·글자) `cards/` | 팀 제작 — 생성형 AI로 일괄 제작 <!-- 확인 필요: AI 도구 이름 --> | 팀 소유 (해당 AI 도구의 이용 약관에 따름) · 그림 속 「부천시립박물관」 이름·도장 표기는 확인 필요 | 모든 화면 (`src/main.js`, `src/shared/workbench.js`, `src/shared/overlay.js`, `src/scenes/*`) |
+| **화면 그림 전체** — 배경 `backgrounds/`, 배너·버튼·팝업·재료 칸 `ui/`, 재료 `items/`, 단계별 그림 `stages/`(게이지, 슬라이더·대나무 도구 커서, 잿물 색 원, 가마·불·온도계, 「나만의 옹기카드」 틀), 시작·설명·로딩·마무리 화면 `screens/`, 박물관 옹기 카드의 디자인(틀·글자) `cards/` | 팀 제작 (김서연) — 생성형 AI **ChatGPT(OpenAI GPT)·Claude(Anthropic)** 로 제작 | 팀 소유 — OpenAI·Anthropic 이용 약관에 따라 생성물을 사용 · 그림 속 「부천시립박물관」 이름·도장 표기는 확인 필요 | 모든 화면 (`src/main.js`, `src/shared/workbench.js`, `src/shared/overlay.js`, `src/scenes/*`) |
 | **박물관 옹기 카드 속 유물 사진** `cards/card-museum-*.png` (소래기·시루·굼탱이·겹단지·죽절단지) | 부천시립박물관 소장품, 연계 기관 제공 (부천문화재단 「박물관 PBL」) | 연계 기관 제공 자료 — 이 프로젝트 안에서만 사용, 다른 용도로 쓸 때는 기관과 별도 협의 | 시작 화면 카드 넘기기 (`src/scenes/start.js` `CARDS`) |
 
-팝업 속 「옹기장이 한마디」 문구의 출처는 4절에 적습니다.
 
 ---
 
 ## 3. 소리
 
-<!-- 소리 추가 후 작성. 출처별로 한 줄씩 (예: Freesound 파일 이름과 작성자, CC BY 4.0이면 작성자 표기 필수) -->
 
 | 자료 | 출처 | 라이선스 | 사용 위치 |
 |---|---|---|---|
-| (아직 없음) | | | |
+| 배경음 `sounds/bgm-main.mp3` | Pixabay https://pixabay.com | Pixabay Content License (https://pixabay.com/service/license-summary/) — 상업적·비상업적 사용, 수정 가능, 출처 표기 의무 없음, 원본 그대로 단독 판매·배포 금지 | 전체 배경음 |
+| 효과음 `sounds/ui-button-click.mp3`, `start-card-swipe.mp3`, `stage1-pour-water.mp3`, `stage2-clay-tap.mp3`, `stage6-add-firewood.mp3`, `stage6-fire-loop.mp3`, `stage6-result-good.mp3`, `stage6-result-fail.mp3`, `stage7-camera-shutter.mp3` | Pixabay https://pixabay.com | Pixabay Content License (위와 같음). `stage6-fire-loop.mp3` 는 반복 재생용으로 잘라 씀 | 버튼, 시작 화면 카드 넘기기, 1·2·6·7단계 |
 
 ---
 
@@ -52,9 +51,7 @@
 | 《옹기》 | 국립민속박물관 | 파상문을 도구로 찍는 방식과 손가락으로 그리는 방식 | 4단계 |
 | 배보늬, 조선시대 영남지방 옹기 연구 | 학위논문 | 조선 전기 옹기는 기벽이 얇고 후기로 갈수록 두꺼워짐 | 벽 두께 참고 |
 | Onggi through the ages | Ceramics Monthly | 큰 항아리의 마지막 가래는 전을 접어 세우려고 더 두껍게 만듦 | 벽 두께 참고 |
-| 완료 팝업 「옹기장이 한마디」·로딩 「알고 있나요?」 문구 | 확인 필요 (문구 작성자와 참고 자료) | | `ui/popups/*`, `screens/loading/*` |
 
-<!-- 확인 필요: 위 국가유산청·국립민속박물관 자료의 정확한 URL과 열람 날짜 -->
 
 ---
 
@@ -62,7 +59,7 @@
 
 | 자료 | 출처 | 라이선스 | 사용 위치 |
 |---|---|---|---|
-| 전체 소스 코드 (`src/`, `index.html`) | 팀 직접 작성 | 팀 소유 <!-- 확인 필요: 공개 라이선스를 붙일지 (예: MIT) --> | 전체 |
+| 전체 소스 코드 (`src/`, `index.html`) | 팀 직접 작성 | 팀 소유 | 전체 |
 | 글자 → 텍스처 방식 (`src/core/text.js`) | 컴퓨터그래픽스 수업 11주차 강의 코드 기반 | 수업 자료 | 캔버스 글자 |
 | 회전체·카메라·Phong 셰이더 구조 | 컴퓨터그래픽스 수업 실습·개인 과제 코드 기반 | 수업 자료 | `src/core/mesh.js`, `src/core/camera.js`, `src/shared/potShader.js` |
 
@@ -73,7 +70,7 @@ AI 도구(Claude 등)로 작성을 도운 코드가 있으며, 팀이 검토하�
 ## 제출 전 확인 목록
 
 - [x] ~~주아체 사용 조건~~ → 상업적 이용 허용 (2026-11-26, 1절)
-- [ ] 그림 제작에 쓴 AI 도구 이름 (2절) — 생성형 AI로 일괄 제작 (2026-11-26)
+- [x] ~~그림 제작에 쓴 AI 도구 이름 (2절)~~ → ChatGPT(GPT)·Claude (2026-11-26)
 - [x] ~~박물관 옹기 카드 5장의 유물 사진 출처~~ → 연계 기관 제공 (2026-11-26, 2절)
 - [ ] 카드 틀·시작 화면의 「부천시립박물관」 이름·도장 표기를 써도 되는지 확인
 - [ ] 설명 문구의 작성자와 참고 자료 (4절)

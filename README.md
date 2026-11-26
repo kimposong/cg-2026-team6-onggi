@@ -84,6 +84,7 @@ python -m http.server 5500
 | 언어 | JavaScript. 빌드 도구·번들러·`type="module"` 없음. 일반 `<script>` 를 순서대로 불러옵니다 |
 | UI | 버튼·글자·팝업을 포함한 **모든 UI를 캔버스 안에** 그립니다. 글자는 2D 캔버스로 그려 텍스처로 올립니다 |
 | 글꼴 | 배달의민족 주아체 (`assets/fonts/bmjua.ttf`) |
+| 소리 | Web Audio API (`AudioContext`). 배경음·효과음은 Pixabay, 일시정지 팝업에서 켜고 끔. 브라우저 자동 재생 제한 때문에 첫 터치부터 소리가 납니다 |
 
 **수업 개념과의 연결:** 옹기 몸체는 단면 곡선을 축 둘레로 돌린 **회전체 메시**, 6단의 반지름을 잇는 곡선은 **Catmull-Rom**, 물레 회전과 장면 배치는 **모델·뷰·투영 변환**, 옹기·물레 조명은 **Phong 셰이딩과 법선 행렬**, 문양은 **광선-표면 교차 → UV → 2D 캔버스 → 텍스처**, 7단계 촬영은 **프레임버퍼(FBO)** 에 옹기만 그려 읽어 냅니다.
 
@@ -99,6 +100,7 @@ cg-2026-team6-onggi/
 │  ├─ stages/stageN/      한 단계에서만 쓰는 그림 (게이지, 대나무 도구, 잿물 색, 가마·불·온도계, 카드 틀)
 │  ├─ screens/            시작·설명·로딩·마무리 화면 그림
 │  ├─ cards/              박물관 옹기 카드 5장
+│  ├─ sounds/             배경음·효과음 (bgm- / ui- / start- / stageN- 접두사)
 │  └─ fonts/              주아체
 ├─ docs/                  수업 산출 문서
 └─ src/
@@ -110,7 +112,8 @@ cg-2026-team6-onggi/
    │  ├─ ui.js            캔버스 UI 셰이더: 사각형·원·글자·그림·버튼·판정
    │  ├─ text.js          글자 → 텍스처, 글꼴 불러오기, 줄바꿈
    │  ├─ image.js         그림 파일·2D 캔버스 → 텍스처
-   │  └─ input.js         pointer 이벤트 → 캔버스 픽셀 좌표, 휠·핀치
+   │  ├─ input.js         pointer 이벤트 → 캔버스 픽셀 좌표, 휠·핀치
+   │  └─ sound.js         소리 불러오기·한 번 재생·반복 재생·음소거 (Web Audio)
    ├─ shared/             두 화면 이상이 쓰는 것
    │  ├─ potShader.js     옹기·물레 Phong 셰이더 (문양·잿물·구운 결과 포함)
    │  ├─ wheel.js         물레
@@ -225,6 +228,10 @@ flowchart TB
 | 「처음부터 다시」 목적지 | `src/shared/overlay.js` 의 `RESTART_SCENE` |
 | 물레·옹기의 화면 높이·크기 | `src/shared/workbench.js` 의 `SHIFT_Y`(1·2·5단계), `SHIFT_Y_LOW`(3·4·7단계), `SCENE_SCALE` |
 | 물레 회전 속도 | `src/shared/workbench.js` `move` 의 `Math.PI * 1.5` |
+| 소리 파일 바꾸기·추가 | `assets/sounds/` 에 넣고 `src/main.js` 의 `Sound.load({ 이름: 경로 })` 목록에 추가 → 화면에서 `Sound.play('이름')` |
+| 배경음 크기 | `src/main.js` 의 `BGM_VOLUME` |
+| 불꽃 소리 크기 (온도 1~4단계) | `src/scenes/stage6-gama.js` 의 `FIRE_VOLUME` |
+| 효과음 하나의 크기 | 그 소리를 부르는 곳의 `Sound.play('이름', { volume: 0~1 })` |
 | 단계 제목·안내 문구 | 위쪽 제목은 배너 **그림**(`assets/ui/banners/banner-stageN.png`)이라 그림을 바꿔야 합니다. 배너 아래 한 줄 설명은 각 단계 파일의 `Work.drawBanner(ctx, n, sub)` 와 `Work.hint([...])` 문자열 |
 | 설명문 글자 크기 | `src/shared/workbench.js` 의 `SUB_TEXT_H` |
 | 새 화면 추가 | `src/scenes/` 에 파일을 만들어 `Scenes.register(...)` → **`index.html` 에 script 줄 추가** (순서 = 의존 순서) |
@@ -283,8 +290,8 @@ flowchart TB
 
 | 이름 | 맡은 역할 |
 |---|---|
-| (팀원 1) | |
-| (팀원 2) | |
-| (팀원 3) | |
+| 김태민 | 프로그램 구조 설계(화면 전환·옹기 모델·셰이더), 옹기 만들기 3~5단계(쌓고 빚기·문양·잿물) 및 7단계(옹기 카드)·마무리 화면 제작, 통합·배포 |
+| 김서연 | 게임 UX 설계(체험 흐름·화면 구성), UI 디자인(배너·버튼·팝업), 게임 에셋 제작(배경·재료·카드 그림), 효과음 및 배경음 리서칭 |
+| 이재원 | 프로그램 시작 단계(시작·설명·로딩 화면), 옹기 만들기 1~3단계(흙 준비·리듬 반죽·바닥 만들기) 및 6단계(가마에 굽기) 제작 |
 
 개발 과정의 설계 결정, 바꾼 이유, 아직 정하지 않은 것은 [HANDOFF.md](HANDOFF.md) 에 날짜별로 기록되어 있습니다.
