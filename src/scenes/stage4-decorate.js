@@ -180,6 +180,7 @@
   function sliderSet(x) { st.size = Math.min(1, Math.max(0, (x - st.slider.x0) / (st.slider.x1 - st.slider.x0))); }
 
   function onButton(ctx, id) {
+    Sound.play('click');                       // (2026-11-26) 버튼 소리 (되돌리기·다 그렸어요·물레 버튼)
     if (id === 'knife' || id === 'finger') st.tool = id;
     if (id === 'spin') st.spin = !st.spin;
     if (id === 'clear') clearDecal();

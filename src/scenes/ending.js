@@ -91,6 +91,7 @@
       st.press = null;
       const b = st.buttons.find((bb) => bb.id === id);
       if (!b || !ctx.ui.hit(b, x, y)) return;
+      Sound.play('click');                       // (2026-11-26) 버튼 소리
       if (id === 'again') ctx.go(AGAIN_SCENE);
       else if (id === 'home') ctx.go(HOME_SCENE);
     },

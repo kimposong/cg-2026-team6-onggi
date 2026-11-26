@@ -32,6 +32,7 @@
 - 2026-11-24 (Claude Code, 4단계 정리): ① 4단계는 재료를 안 쓰므로 **슬롯 바를 접어 숨김** (`setInventory(ALL_ITEMS, false)`, 5단계가 다시 펼침) → **굵기 슬라이더·물레 버튼 줄을 슬롯 바 자리로 내림** (`FIG.rowY` 0.706 → 0.826H) ② **커서를 조각칼 → 대나무 도구 그림**(`stage4-cursor-bamboo-tool.png`)으로. 그림 속 칼끝 `TOOL_TIP` (0.04, 0.158) = 포인터, 크기 `TOOL_SIZE` s×0.24. 그림 전에는 원래 조각칼 (7-5).
 - 2026-11-24 (Claude Code, 휴대폰 테스트): 모바일 크롬에서 주소창·아래 탭 때문에 아래 버튼이 안 보이던 문제 → **캔버스 높이 `100vh` → `100dvh`** (`index.html` CSS, 옛 브라우저는 100vh 그대로). 바는 그대로 보이고 캔버스가 보이는 영역에 맞춰진다 (9장, 8-7). 전체 화면 API(안드로이드만 바 숨김)는 적용 안 함.
 - 2026-11-25 (Claude Code, 에셋 2차): 팀이 `assets/` 맨 위에 올린 그림 67개 정리 — **기존과 바이트까지 같은 29개 삭제**, 새 그림 38개를 영어 이름으로 바꿔 분류 (8-1-1): 완료·일시정지 팝업 → `ui/popups/`, 버튼 7개 → `ui/buttons/`, 시작 전 배너 → `ui/banners/banner-intro.png`, 온도계 5개 → `stages/stage6/`, 카드 틀 → `stages/stage7/`, 박물관 옹기 카드 5장 → `cards/`, 시작·설명·로딩·마지막 화면 → `screens/`. 코드 적용은 아직. 용량 약 46MB (13장).
+- 2026-11-26 (Claude Code, 소리): **배경음·효과음 적용 + 일시정지 소리 스위치 동작** — 새 도구 `core/sound.js`(`Sound`, Web Audio), `main.js` 가 10개를 불러오고 배경음 반복, 각 화면이 정해진 자리에서 `Sound.play` (8-1-2 표), `Overlay` 스위치 = `Sound.setMuted` (저장된 값으로 시작). ffmpeg 로 소리 다듬기(8-1-2). 이름 「옹기종기 공방」 확정, README·CREDITS 초안. 빌드 `v41`. 크롬 headless(DevTools 프로토콜)로 콘솔 오류 없음·소리 10개 디코딩·스위치 켜기/끄기·저장·6→7→마무리→1단계 전환 확인. 휴대폰 실기기 소리는 확인 못 함.
 - 2026-11-25 (Claude Code, 아이폰 키보드 해결·정리): 캐시 무시 후 **아이폰(크롬)에서 이름 키보드 정상 확인** (사용자). 진단 모드(`?debug`, 노란 글씨) 코드 삭제, 빌드 `v40`. 남긴 것 = 실제 해결책 세 가지: ① 투명 `<input>` 을 이름 칸 위에 겹침 ② 캔버스 `touchend` 이름 칸 → `preventDefault` + `focus` ③ 적는 중 캔버스 `mousedown` 기본 동작 막기 (+ 안드로이드용 `core/input.js` 터치 pointerdown `preventDefault`). 빌드 번호 표시·`?v=` 는 배포 확인용으로 유지.
 - 2026-11-25 (Claude Code, 캐시): 휴대폰에서 진단 글씨가 안 보임 → **GitHub Pages `max-age=600` 때문에 폰이 예전 js 를 계속 씀** (`?debug` 는 index.html 만 새로 받게 할 뿐 js 주소는 같음). `index.html` 의 모든 `./src/*.js` 뒤에 **`?v=번호`**(캐시 무시), `main.js` 에 `BUILD` 상수 → 화면 맨 위 가운데 `v39 · ms/frame` 으로 표시. **코드를 바꿔 배포할 때 `?v=` 번호와 `BUILD` 를 같이 올릴 것.**
 - 2026-11-25 (Claude Code, 아이폰 키보드 3): 사용자 관찰 "이름 칸이 키보드 뜰 것처럼 바뀌었다가 0.1초 만에 돌아감" = 포커스 후 바로 blur. iOS 는 손을 뗀 뒤 흉내 mousedown·click 을 보내고 그 mousedown 이 포커스를 캔버스로 옮긴다 (pointerdown preventDefault 로는 iOS 에서 안 막힘). → 캔버스 touchend 의 이름 칸 처리에서 `preventDefault()`(흉내 마우스 이벤트 취소) + 적는 중에는 캔버스 `mousedown` 기본 동작을 막음. 진단 모드에 mousedown 표시 추가.
@@ -561,7 +562,8 @@ onggi/
    │  ├─ mesh.js              # Mesh     — 회전체·기본 도형·Catmull-Rom·GPU 업로드
    │  ├─ camera.js            # Camera   — 궤도 카메라 도구, fitDistance, worldToScreen
    │  ├─ ui.js                # UI       — 캔버스 UI 셰이더 포함, 사각형·원·글자·버튼·판정
-   │  └─ input.js             # Input    — pointer 이벤트 → 캔버스 픽셀 좌표 (dpr 변환)
+   │  ├─ input.js             # Input    — pointer 이벤트 → 캔버스 픽셀 좌표 (dpr 변환)
+   │  └─ sound.js             # Sound    — (2026-11-26) 소리 불러오기·한 번 재생·반복 재생·음소거 (Web Audio, 8-6)
    ├─ shared/                 # 두 화면 이상이 쓰는 셰이더·소품
    │  ├─ potShader.js         # PotShader — 옹기·물레 Phong 셰이더 + begin/draw, CLAY/WOOD 색
    │  ├─ wheel.js             # Wheel    — 물레 (1~6단계 공유)
@@ -621,6 +623,32 @@ onggi/
 - 폴더 규칙: 여러 화면이 쓰는 그림은 종류별(`backgrounds/`, `ui/banners·buttons·slots·popups/`, `items/`, `cards/`), 한 화면만 쓰는 그림은 `stages/stageN/`, 단계가 아닌 화면(시작·설명·로딩·마지막)은 `screens/<화면>/` (2026-11-25 추가). 버튼은 한 화면 전용이어도 `ui/buttons/` (기존 `btn-add-firewood` 와 같은 규칙). 기존 `icons/`(→ `ui/slots`·`items`)·`patterns/`(문양 도장 안 만듦)는 삭제, `textures/`(흙·나무 질감 예정)는 유지.
 - 이름 규칙: 소문자 + 하이픈. 폴더를 옮겨도 알아보게 파일 이름에도 종류 접두사(`banner-`, `btn-`, `slot-`, `item-`, `stageN-`)를 남긴다.
 - **용량 주의:** 34개 합계 약 20MB → 수업 기준 "전체 15MB 이하" 초과. 큰 것은 `background.png`(약 7.6MB), 배너 7개(각 약 1MB), 가마(1.2MB). 줄이는 건 나중에 (2026-11-20 사용자 결정) — 휴대폰 기준 배경 세로 2000px 이하, JPG/WebP 변환 후보.
+
+### 8-1-2. `assets/sounds/` 소리 (2026-11-26 팀이 추가, Claude Code가 영어 이름으로 바꿈 → 같은 날 코드 적용, 8-6 `Sound`)
+그림과 같은 이름 규칙(소문자 + 하이픈, 종류 접두사). 10개뿐이라 하위 폴더 없이 `sounds/` 한 곳에 둔다. 접두사: `bgm-` 배경음, `ui-` 공통, `start-` 시작 화면, `stageN-` 피그마 단계 번호.
+
+| 파일 (`assets/sounds/` 아래) | 원래 이름 | 처리 후 길이·용량 | 들어갈 자리 (코드) |
+|---|---|---|---|
+| `bgm-main.mp3` | 배경음 | 61.5초 · 962KB | 전체 배경음 반복 재생 — `main.js` (첫 터치 후 시작, 브라우저 자동 재생 제한) |
+| `ui-button-click.mp3` | 공통_버튼 클릭 | 0.26초 · 4KB | 모든 그림 버튼 — 각 화면의 `ui.hit` 버튼 판정(start·stage3~7·ending), `overlay.js` 팝업 버튼 |
+| `start-card-swipe.mp3` | 시작화면_카드 넘기기 | 0.16초 · 2KB | `start.js` 카드가 다른 카드로 바뀔 때 (`st.target` 이 바뀌는 곳, 173행 등) |
+| `stage1-pour-water.mp3` | 1단계_물 붓기 | 1.67초 · 20KB | `stage1-knead-bar.js` `onDrop` 물을 흙 위에 놓았을 때 (45행) |
+| `stage2-clay-tap.mp3` | 2단계_흙 덩어리 터치 | 1.07초 · 13KB | `stage1-knead-bar.js` `onPress` 리듬 반죽 터치 (67행) — 파일은 stage1 이지만 피그마 2단계 |
+| `stage6-add-firewood.mp3` | 6단계_장작 넣기 | 0.87초 · 11KB | `stage6-gama.js` `feed` 장작 한 개 넣을 때 (305행) |
+| `stage6-fire-loop.mp3` | 6단계_장작 넣고 불꽃 소리 | 20초 · 314KB (원본 9분 54초 · 18.1MB) | `stage6-gama.js` 불 때기(`phase === 'fire'`)~결과 연출 동안 **반복 재생** (302행 시작, `finish` 에서 줄이기) |
+| `stage6-result-good.mp3` | 6단계_잘 구워짐 | 2.03초 · 25KB | `stage6-gama.js` `finish(ctx, 'good')` (312행) |
+| `stage6-result-fail.mp3` | 6단계_타거나 식음(실패) | 2.24초 · 27KB | `stage6-gama.js` `finish(ctx, 'cold' / 'burnt')` (312행) |
+| `stage7-camera-shutter.mp3` | 7단계_카메라 | 0.34초 · 5KB | `stage7-result.js` 「촬영하기」 → `takePhoto` 직후 흰 번쩍임과 같이 (308행) |
+
+- 소리를 켜고 끄는 상태는 이미 `Overlay.sound`(localStorage `onggi-sound`)에 있다 — 재생 전에 이 값을 확인한다 (7-8).
+- 3·4·5단계 전용 소리는 없다 (버튼 클릭만).
+- 출처: 모두 **Pixabay** (Pixabay Content License — 수정 허용, 표기 의무 없음, CREDITS 3절).
+- **(2026-11-26) ffmpeg 일괄 처리** (Claude Code, `winget install Gyan.FFmpeg` 로 ffmpeg 9.1 설치). 합계 20.8MB → **1.4MB**. **원본은 저장소 밖 `d:\ComputerGraphicsStudy\cg_team6\sounds-original\` 에 보관** (저장소에는 처리본만).
+  - 효과음 8개: **앞쪽 무음 제거**(−50dB 기준, 소리 시작 0.02초 전부터 — 반죽 터치 0.54초·장작 0.31초 늦게 나던 것), **최대 음량 −3dB 로 통일**(물 붓기 +13.5dB, 카드 넘기기 +16.2dB 등 원래 작던 소리가 커짐), 모노 44.1kHz 96kbps, 시작 3ms 페이드(딸깍 방지). 끝 무음은 그대로 (자르면 잔향이 같이 잘렸다).
+  - ⚠️ 처음엔 `-ss`(입력 구간 이동)로 잘랐는데 MP3 프레임 단위 오차로 **장작 소리 첫 타격음이 잘려 나감** (최대 음량 −8.6 → −17dB 로 바뀐 것으로 발견) → 디코딩 후 `atrim` 으로 샘플 단위로 자름. 처리 전후 최대 음량 비교로 확인 (AI가 틀린 사례).
+  - 불꽃: 원본 60~82초 구간에서 20초 반복용 — 끝 2초를 처음 2초에 겹쳐(크로스페이드) 이어 붙여 반복할 때 이음매가 없게. 스테레오 128kbps. 음량은 그대로 (평균이 작으니 코드에서 볼륨 조절).
+  - 배경음: 앞 0.35초·끝 0.47초 무음 잘라 반복 이음매 줄임, 스테레오 128kbps. 음량 그대로.
+  - 반복 재생은 `<audio loop>` 보다 Web Audio(`AudioBufferSourceNode.loop`)가 이음매 틈이 적다 (MP3 앞뒤 여백 때문).
 
 ### 8-2. 로딩 방식 (중요)
 - **`type="module"` 을 쓰지 않는다.** 일반 `<script>` 로 순서대로 로드 → Live Server로도, 파일 직접 열기로도 동작.
@@ -748,6 +776,15 @@ Scenes.register('이름', {
 **`Input`** (core/input.js) — (2026-11-25) 터치 pointerdown 은 `preventDefault()` (호환 mousedown 이 입력칸 포커스를 빼앗지 않게 — 마우스는 그대로). `Input.setup(canvas, { down, move, up, hover, wheel?, pinch?, cancel? })`, 조작은 한 손가락만, `setPointerCapture`, contextmenu 차단, CSS→캔버스 픽셀 = `× canvas.width / rect.width`
 - (2026-11-16 추가) `wheel(x, y, deltaY)` — 마우스 휠, 페이지 스크롤 막음(`passive: false`). `pinch(factor, cx, cy)` — 두 손가락 사이 거리가 직전보다 `factor` 배. 두 번째 손가락이 닿으면 `cancel()` 을 보내고 한 손가락 조작을 끊는다. `main.js` 가 `Scenes.call('wheel' | 'pinch' | 'cancel', …)` 로 전달 (화면 약속에 선택 함수로 추가)
 
+**`Sound`** (core/sound.js, 2026-11-26) — Web Audio(`AudioContext`) 하나 + 마스터 볼륨(`GainNode`). Unity 의 AudioClip + AudioSource + AudioMixer 마스터 볼륨 역할
+- `Sound.load({ 이름: 경로 })` — fetch → `decodeAudioData`(옛 사파리용 콜백 방식) 비동기. 실패하면 경고만, 체험은 계속. 지금 이름: `bgm click swipe water tap wood fire good fail shutter` (`main.js`)
+- `Sound.play(name, { volume, rate })` — 한 번 재생, 겹쳐 낼 수 있음. 아직 못 받았거나 첫 터치 전(`suspended`)이면 **건너뛴다** (나중에 몰아서 나지 않게)
+- `Sound.loop(name, { volume, fadeIn })` → `{ setVolume(v, time), stop(fade) }` — 반복 재생(`AudioBufferSourceNode.loop`). 파일을 아직 받는 중이면 0.2초마다 다시 보고 받는 대로 시작 (배경음은 시작하자마자 부른다). 볼륨은 늘 짧게 램프 (뚝 바뀌면 딸깍)
+- `Sound.setPaused(bool)` — (2026-11-26 사용자 결정 "일시정지 중에는 배경음만") 반복 소리 통로 `loopBus` 를 0.2초 동안 0/1 로. `loop(…, { keepOnPause: true })`(배경음)와 `play`(버튼 클릭 등 한 번 소리)는 `loopBus` 를 안 지나 계속 난다. `Overlay.pause` 가 켜고 `close`(계속하기·ESC·처음부터 다시)가 끈다. 소리를 멈추는 게 아니라 줄이는 것이라 풀면 이어서 들린다
+- `Sound.setMuted(bool)` — 마스터 볼륨을 0.15초 동안 0/1 로. 반복 소리는 멈추지 않고 소리만 꺼진다 → 다시 켜면 이어서 들림. `Overlay` 가 시작할 때 저장값으로, 스위치를 누를 때마다 부른다
+- **자동 재생 제한:** 첫 `pointerdown`·`touchend`·`keydown` 에서 `resume()` (아이폰은 touchend 안에서만 풀리는 경우가 있어 둘 다). 그 전에 시작한 배경음은 그때부터 들린다. 탭을 숨기면 `suspend`, 돌아오면 `resume`
+- 화면이 쓰는 곳: 8-1-2 표. 버튼 클릭은 각 화면 `onButton` 맨 앞(3·4·5·6·7단계), 시작 화면·마무리·`Overlay` 는 버튼을 뗄 때. 6단계 불꽃은 `enterKiln` 에서 시작 → 매 프레임 온도로 `setVolume`(`FIRE_VOLUME`) → `finish` 에서 줄이며 멈춤(식음 0.6초·그 외 1.8초) → `exit` 에서 혹시 남은 것 정리
+
 ### 8-7. index.html 의 CSS (허용된 최소)
 `html, body { margin:0; height:100%; overflow:hidden; background:#2a211c; }`, `canvas { width:100vw; height:100vh; height:100dvh; touch-action:none; user-select:none; -webkit-touch-callout:none; }` — `touch-action: none` 은 드래그 중 스크롤·확대 방지용으로 필수. viewport meta에 `user-scalable=no`.
 
@@ -864,14 +901,15 @@ Scenes.register('이름', {
 - [ ] 손 커서를 이모지에서 팀 제작 이미지로 바꿀지 (4단계 커서는 2026-11-20 대나무 도구 그림으로 결정, 2026-11-24 적용 — 3단계 손 커서 그림은 아직 없음)
 - [ ] (2026-11-20) 에셋 용량 줄이기 (합계 약 20MB > 15MB 기준) — 나중에. (2026-11-25) 새 그림 38개 추가로 `assets/` 약 46MB — 박물관 옹기 카드 5장(약 15MB)·7단계 카드 틀(2.8MB)이 큼. (2026-11-24) 주아체 `bmjua.ttf` 1.5MB 추가 → woff2 변환 또는 쓰는 글자만 서브셋 후보
 - [x] ~~(2026-11-24) 주아체 라이선스(배달의민족 글꼴 사용 조건) 확인 후 `CREDITS.md` 에 출처 기록~~ → 2026-11-26 상업적 이용 허용 확인(사용자), `CREDITS.md` 에 공식 링크 기록
-- [ ] (2026-11-26) README 「팀과 기여」 표 — 사용자가 팀원 정보를 따로 정리해 주면 그대로 적는다 (리마인드할 것)
-- [ ] (2026-11-26) 팀 그림 제작 방식 → 하나의 생성형 AI로 일괄 제작한 것으로 보임 (사용자), `CREDITS.md` 2절을 한 줄로 묶음. **AI 도구 이름** 확인되면 기록
+- [x] ~~(2026-11-26) README 「팀과 기여」 표~~ → 2026-11-26 채움 (김태민·김서연·이재원, 김태민 몫은 커밋 기록·HANDOFF 로 Claude Code 가 정리)
+- [x] ~~(2026-11-26) 팀 그림 제작 방식~~ → ChatGPT(GPT)·Claude 생성형 AI로 제작 (사용자), `CREDITS.md` 2절 반영
 - [x] ~~(2026-11-25 피그마 최종안, 6-0-1) 새 화면 구현 순서~~ → 사용자 작업 범위: ① 완료 팝업 ② 일시정지 ③ 7단계 촬영·카드 저장·마무리 화면. ①② 2026-11-25 구현 (7-8)
 - [x] ~~(2026-11-25) 「다음 단계로」 버튼 그림~~ → 기존 `btn-next`「다음으로」를 쓴다 (팀 합의). 이름 입력 칸 등은 아래 7단계 항목
 - [x] ~~(2026-11-25) 일시정지 세부 2-2~2-5~~ → 1단계(시작 화면 생기면 start) / 소리 스위치는 상호작용만 / 플레이 화면에서만 / 계속하기·ESC (7-8)
 - [x] ~~(2026-11-25) 7단계 질문 3-1~3-7~~ → 7-9
 - [x] ~~(2026-11-25) 7단계 이름 입력~~ → 키보드 입력 (숨긴 `<input>`, 사용자 결정 — 규칙 예외라 설명 준비)
-- [ ] (2026-11-25) 소리 기능 (효과음·배경음) — `Overlay.sound` 스위치는 있음
+- [x] ~~(2026-11-25) 소리 기능 (효과음·배경음) — `Overlay.sound` 스위치는 있음~~ → 2026-11-26 구현 (8-1-2, 8-6 `Sound`). 실기기에서 들어 보고 음량·불꽃 반복 구간 확인은 사용자 몫
+- [x] ~~(2026-11-26) 일시정지 중 불꽃 소리를 줄일지~~ → 일시정지 중에는 **배경음만** (사용자 결정). `Sound.setPaused`, 배경음은 `keepOnPause` (8-6)
 - [ ] (2026-11-25) 카드 화면에서 「다시 찍기」를 둘지 (지금은 촬영 후 되돌아갈 수 없음)
 - [ ] (2026-11-25) 6단계: 피그마 최종안도 장작 리듬 + 온도계 — 지금 온도 유지 게임(7-7) 유지 확인, 온도계 그림 5장을 지금 코드 온도계(1~4단계 + 넘침?)에 어떻게 맞출지
 - [ ] 현재 Public 저장소 = 팀 저장소로 쓸지, 별도 팀 저장소와 합칠지

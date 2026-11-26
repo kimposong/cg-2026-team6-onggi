@@ -304,6 +304,8 @@
       : Work.buttonRow(ctx, [{ id: 'save', img: IMG.save, label: '이미지 저장' }, { id: 'next', img: IMG.next, label: '다음으로' }]);
   }
   function onButton(ctx, id) {
+    // (2026-11-26) 촬영하기 = 찰칵 소리 (흰 번쩍임과 같이), 나머지 버튼 = 클릭 소리
+    Sound.play(id === 'capture' ? 'shutter' : 'click');
     if (id === 'capture') {
       st.photo = takePhoto(ctx);
       st.phase = 'card'; st.flash = 1; st.cardIn = 0; st.cardDirty = true;

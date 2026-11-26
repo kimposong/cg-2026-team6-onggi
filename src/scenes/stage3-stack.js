@@ -167,6 +167,7 @@
   };
 
   function onButton(ctx, id) {
+    Sound.play('click');                       // (2026-11-26) 버튼 소리 (흐린 「다음으로」도 눌리면 안내가 뜨므로 소리를 낸다)
     if (id === 'back') {
       if (st.layers === 0) { ctx.go('stage2-base'); return; }        // 올린 단이 없으면 이전 단계로
       const i = cur();

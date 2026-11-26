@@ -49,6 +49,7 @@
           // (2026-11-25 사용자 테스트) 바로 sub = 2 로 바꾸면 팝업이 뜨기 전 0.9초 동안 리듬 게임(배너 2·게이지)이 먼저 보였다
           //   → 젖는 중(sub 1.5)으로 두고 배너 1·게이지 숨김, 「다음으로」를 누를 때 리듬 반죽을 시작한다 (사용자 결정 C안)
           st.wetT = 1; st.sub = 1.5; st.sq = 1;
+          Sound.play('water');                       // (2026-11-26) 물 붓는 소리 (1.7초 — 팝업이 뜨는 0.9초 뒤에도 조금 이어진다)
           Overlay.stageDone(ctx, 1, () => { st.sub = 2; st.t = 0; }, 0.9);
           return true;
         }
@@ -68,6 +69,8 @@
       if (st.sub !== 2 || st.doneAt) return;
       const s = ctx.s, tr = tierOf(Math.abs(pointer()));
       const txt = tr.txt, col = tr.col, pts = tr.pts;
+      // (2026-11-26) 반죽 터치 소리 — 판정이 좋을수록 조금 크게 (파일 앞 무음을 잘라 누르는 순간 바로 난다, HANDOFF 8-1-2)
+      Sound.play('tap', { volume: pts >= 15 ? 1 : 0.7 });
       if (pts >= 8) { st.combo++; st.best = Math.max(st.best, st.combo); } else st.combo = 0;   // Bad 면 연속 끊김
       st.score = Math.min(GOAL, st.score + pts); st.sq = pts >= 15 ? 1.2 : 0.8; st.pulse = 1;
       const b = barBox(ctx);

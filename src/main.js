@@ -29,9 +29,28 @@
     fontSub: TextTex.loadFont('BMJUA', './assets/fonts/bmjua.ttf'),
   };
 
+  // (2026-11-26) 소리 — 모두 Pixabay (CREDITS 3절), ffmpeg 로 다듬은 파일 (HANDOFF 8-1-2). 화면들은 이 이름으로 Sound.play('click') 처럼 부른다
+  const SND = './assets/sounds/';
+  Sound.load({
+    bgm: SND + 'bgm-main.mp3',                    // 배경음 (아래에서 바로 반복 재생)
+    click: SND + 'ui-button-click.mp3',           // 모든 버튼
+    swipe: SND + 'start-card-swipe.mp3',          // 시작 화면 카드 넘기기
+    water: SND + 'stage1-pour-water.mp3',         // 1단계 물 붓기
+    tap: SND + 'stage2-clay-tap.mp3',             // 2단계 리듬 반죽 터치
+    wood: SND + 'stage6-add-firewood.mp3',        // 6단계 장작 넣기
+    fire: SND + 'stage6-fire-loop.mp3',           // 6단계 불꽃 (반복)
+    good: SND + 'stage6-result-good.mp3',         // 6단계 잘 구워짐
+    fail: SND + 'stage6-result-fail.mp3',         // 6단계 식음·탐
+    shutter: SND + 'stage7-camera-shutter.mp3',   // 7단계 촬영
+  });
+  // 배경음은 처음부터 끝까지 계속 돈다. 브라우저 자동 재생 제한 때문에 실제로는 첫 터치부터 들린다 (Sound.unlock)
+  // 음소거는 일시정지 팝업의 소리 스위치 (Overlay 가 Sound.setMuted 를 부른다)
+  const BGM_VOLUME = 0.35;                         // 효과음보다 작게
+  Sound.loop('bgm', { volume: BGM_VOLUME, fadeIn: 1.5, keepOnPause: true });   // 일시정지 중에도 배경음은 계속 (다른 반복 소리는 꺼짐)
+
   const perf = { acc: 0, count: 0, shown: '' };
   // (2026-11-25) 빌드 번호 — index.html 의 script ?v= 번호와 같게 올린다. 화면 맨 위 가운데에 보여 휴대폰에 새 코드가 들어왔는지 확인할 수 있다
-  const BUILD = 'v40';
+  const BUILD = 'v41';
 
   /* ---------- 화면 크기 ---------- */
   function resize() {

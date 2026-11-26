@@ -107,6 +107,7 @@
     enter(ctx, data) {
       Object.assign(st, { mode: 'home', t: 0, vel: 0, drag: false, open: 0, openTarget: 0, press: null, hit: null, loadT: 0 });
       st.pos = st.target = clamp(Math.round(st.pos), 0, CARDS.length - 1);
+      st.sndCard = st.pos;                                           // (2026-11-26) 카드 넘기기 소리용: 지금 가운데 카드 번호
       loadFont();
       for (const u of CARDS) ImageTex.get(ctx.gl, u);                // 미리 불러 둔다 (눌렀을 때 비어 보이지 않게)
       for (const k in IMG) ImageTex.get(ctx.gl, IMG[k]);
@@ -118,6 +119,9 @@
         st.pos += (st.target - st.pos) * (1 - Math.exp(-dt * 11));
         if (Math.abs(st.target - st.pos) < 0.001) st.pos = st.target;
       }
+      // (2026-11-26) 가운데 카드가 바뀔 때마다 넘기는 소리 — 손으로 끄는 중에도, 놓은 뒤 미끄러질 때도 카드 한 장 지날 때마다 한 번
+      const mid = clamp(Math.round(st.pos), 0, CARDS.length - 1);
+      if (mid !== st.sndCard) { st.sndCard = mid; Sound.play('swipe'); }
       st.open += (st.openTarget - st.open) * (1 - Math.exp(-dt * 12));
       if (Math.abs(st.openTarget - st.open) < 0.002) st.open = st.openTarget;
       if (st.mode === 'loading') { st.loadT += dt; if (st.loadT >= LOADING_TIME) ctx.go(NEXT_SCENE); }
@@ -162,8 +166,9 @@
     up(ctx, x, y) {
       const u = frameU(ctx), pressed = st.press; st.press = null;
       if (st.mode === 'home') {
-        if (pressed === 'make') { if (inRect(homeBtn(ctx), x, y)) { st.mode = 'loading'; st.loadT = 0; } return; }
-        if (pressed === 'link') { if (inRect(stepsLink(ctx), x, y)) st.mode = 'steps'; return; }
+        // (2026-11-26) 버튼 소리 Sound.play('click') — 누른 버튼 위에서 뗐을 때만
+        if (pressed === 'make') { if (inRect(homeBtn(ctx), x, y)) { Sound.play('click'); st.mode = 'loading'; st.loadT = 0; } return; }
+        if (pressed === 'link') { if (inRect(stepsLink(ctx), x, y)) { Sound.play('click'); st.mode = 'steps'; } return; }
         if (!st.drag) return;
         st.drag = false;
         if (st.moved < TAP_PX * u && st.hit !== null) {              // 눌렀다: 가운데 카드면 크게, 옆 카드면 그 카드를 가운데로
@@ -174,14 +179,17 @@
       } else if (st.mode === 'detail') {
         const p = detailCard(ctx), tap = Math.hypot(x - st.dx0, y - st.dy0) < TAP_PX * u;
         const outside = !(x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h);
-        if ((pressed === 'close' && inRect(closeBtn(ctx), x, y)) || (tap && outside && !inRect(closeBtn(ctx), x, y))) { st.mode = 'home'; st.openTarget = 0; }
+        if ((pressed === 'close' && inRect(closeBtn(ctx), x, y)) || (tap && outside && !inRect(closeBtn(ctx), x, y))) {
+          if (pressed === 'close') Sound.play('click');   // (2026-11-26) 「닫기」 버튼만 (바깥 터치로 닫을 때는 소리 없음)
+          st.mode = 'home'; st.openTarget = 0;
+        }
         else if (!tap && Math.abs(x - st.dx0) > 0.12 * u && Math.abs(x - st.dx0) > Math.abs(y - st.dy0)) {   // 펼친 채로 좌우로 밀면 옆 카드
           const n = clamp(st.sel + (x < st.dx0 ? 1 : -1), 0, CARDS.length - 1);
           if (n !== st.sel) { st.sel = n; st.target = n; st.pos = n; }
         }
       } else if (st.mode === 'steps') {
-        if (pressed === 'go' && inRect(startBtn(ctx), x, y)) { st.mode = 'loading'; st.loadT = 0; }
-        else if (pressed === 'back' && inRect(backBtn(ctx), x, y)) st.mode = 'home';
+        if (pressed === 'go' && inRect(startBtn(ctx), x, y)) { Sound.play('click'); st.mode = 'loading'; st.loadT = 0; }
+        else if (pressed === 'back' && inRect(backBtn(ctx), x, y)) { Sound.play('click'); st.mode = 'home'; }
       }
     },
 

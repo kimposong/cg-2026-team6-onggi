@@ -68,6 +68,7 @@
   }
   /** (2026-11-24) 색 원을 누르면 색만 고른다 — 옹기에 바르는 것은 잿물 그릇을 가져다 댈 때 (cb.onDrop) */
   function selectGlaze(i) {
+    Sound.play('click');                       // (2026-11-26) 색 동그라미도 버튼처럼 소리 (잿물 바르기 전용 소리는 없음)
     if (st.sel !== i) { st.sel = i; st.pop = 1; }
     Work.hint(['이제 아래의 잿물 그릇을', '옹기에 가져다 대요']);
   }
@@ -81,6 +82,7 @@
   const glazed = (ctx) => ctx.pot_main.glaze.hex && ctx.pot_main.glaze.level >= 1;
 
   function onButton(ctx, id) {
+    Sound.play('click');                       // (2026-11-26) 버튼 소리
     if (id === 'kiln') {
       // (2026-11-20) 유약을 다 바른 뒤에만 가마로
       // if (!glazed(ctx)) { Work.hint(st.sel < 0 ? ['먼저 잿물 색을 골라 주세요', '위의 동그라미를 눌러요'] : ['잿물이 다 발릴 때까지', '조금만 기다려 주세요']); return; }

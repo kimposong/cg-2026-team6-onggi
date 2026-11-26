@@ -36,12 +36,16 @@ const Overlay = (() => {
   };
 
   // (2026-11-25 사용자 결정 2-3) 소리 켜기·끄기 — 지금은 스위치 상호작용만. 소리를 넣을 때 Overlay.sound 를 읽으면 된다
+  // → (2026-11-26) 소리 기능 연결: 스위치 = Sound.setMuted (배경음·효과음 모두)
   // 다음에 열어도 기억하도록 브라우저 저장소(localStorage)에 남긴다
   const SOUND_KEY = 'onggi-sound';
   let sound = true;
   try { sound = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (e) { /* 저장소를 못 쓰는 브라우저 */ }
+  // (2026-11-26) 스위치가 실제 소리를 켜고 끈다 — core/sound.js 의 마스터 볼륨. 지난번에 꺼 두었으면 처음부터 꺼진 채로 시작
+  Sound.setMuted(!sound);
   function setSound(on) {
     sound = on;
+    Sound.setMuted(!on);
     try { localStorage.setItem(SOUND_KEY, on ? 'on' : 'off'); } catch (e) { /* 무시 */ }
   }
 
@@ -82,6 +86,7 @@ const Overlay = (() => {
 
   function close(ctx) {
     const scene = Scenes.current;
+    if (st.mode === 'pause') Sound.setPaused(false);   // (2026-11-26) 계속하기·처음부터 다시 → 불꽃 등 반복 소리 다시
     st.mode = null; st.press = null;
     return scene;
   }
@@ -89,6 +94,7 @@ const Overlay = (() => {
   function pause(ctx) {
     if (st.mode || !inStage()) return;
     open(ctx, 'pause');
+    Sound.setPaused(true);                       // (2026-11-26) 일시정지 중에는 배경음만 (사용자 결정)
   }
 
   function resume(ctx) {
@@ -185,10 +191,12 @@ const Overlay = (() => {
     if (!id) return blocking();
     const b = buttons(ctx).find((bb) => bb.id === id);
     if (!b || !hitBtn(b, x, y)) return true;     // 누른 버튼 밖에서 떼면 취소
+    if (!(id === 'next' && b.dim)) Sound.play('click');   // (2026-11-26) 버튼 소리 (기다리는 중인 「다음으로」는 안 눌리므로 소리도 없음)
     if (id === 'pause') pause(ctx);
     else if (id === 'continue') resume(ctx);
     else if (id === 'restart') { close(ctx); ctx.go(RESTART_SCENE); }
-    else if (id === 'sound') setSound(!sound);   // (2026-11-25) 지금은 스위치만 바뀐다 (소리 기능은 나중에)
+    // else if (id === 'sound') setSound(!sound);   // (2026-11-25) 지금은 스위치만 바뀐다 (소리 기능은 나중에)
+    else if (id === 'sound') setSound(!sound);      // (2026-11-26) 실제 음소거 — 끌 때는 클릭 소리가 먼저 나고 0.15초 동안 줄어든다
     else if (id === 'next' && !b.dim) {
       const next = st.next;
       close(ctx);

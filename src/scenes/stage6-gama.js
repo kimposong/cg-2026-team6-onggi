@@ -298,20 +298,31 @@
   function resetGame() {
     Object.assign(st, { tempShow: START_LEVEL, level: START_LEVEL, hold: DROP_TIME, progress: 0, fireShow: FIRE_SCALE[START_LEVEL - 1], lit: 0, flare: 0, warn: 0, resT: 0, result: null, endT: 0, outT: 0, wood: null });
   }
+  // (2026-11-26) 소리 — 불꽃은 불 때는 동안 반복 재생하고, 온도가 높을수록 크게 (온도 1~4단계 → 볼륨)
+  const FIRE_VOLUME = [0.5, 0.7, 0.85, 1.0];
+  let fireSnd = null;                  // 반복 재생 핸들 (Sound.loop) — 불 때기를 시작할 때 만들고 결과가 나오면 줄이며 멈춘다
+  function stopFire(fade) { if (fireSnd) { fireSnd.stop(fade); fireSnd = null; } }
+
   function enterKiln(ctx) {            // 옹기가 가마 속으로 완전히 들어갔다 → 불 때기 시작
     st.phase = 'fire'; st.drag = false; st.glide = false; resetGame();
     Work.setInventory(Work.ALL_ITEMS, true);
+    stopFire(0.1);
+    fireSnd = Sound.loop('fire', { volume: FIRE_VOLUME[START_LEVEL - 1], fadeIn: 0.8 });   // (2026-11-26) 불이 붙는 소리
   }
   function feed(ctx, fromX, fromY) {   // 장작 한 개 넣기
     if (st.phase !== 'fire') return;
     const g = kilnGeom(ctx);
     st.wood = { x: fromX, y: fromY, t: 0 };                      // 장작이 입구로 날아가는 연출 (끝나면 불길이 번쩍)
     st.level += 1; st.hold = DROP_TIME; st.flare = 1;
+    Sound.play('wood');                                          // (2026-11-26) 장작 넣는 소리
     if (st.level > SAFE_MAX) finish(ctx, 'burnt');
   }
   function finish(ctx, kind) {
     st.result = kind; st.phase = 'ending'; st.endT = 0; st.wood = st.wood;
     if (kind !== 'good') st.fails += 1;
+    // (2026-11-26) 결과 소리 + 불꽃 소리는 결과 연출 동안 줄어들며 멈춘다 (식었으면 빨리, 아니면 천천히)
+    Sound.play(kind === 'good' ? 'good' : 'fail');
+    stopFire(kind === 'cold' ? 0.6 : 1.8);
   }
   function retry(ctx) {                // 다시 굽기: 옹기를 처음 자리에서 가마로 자동으로 들여보낸다
     st.phase = 'carry'; st.glide = true; st.drag = false; st.moved = true; st.result = null;
@@ -367,6 +378,7 @@
           if (st.level < SAFE_MIN) finish(ctx, 'cold');
         }
         st.warn = st.hold < 1.3 && st.level <= SAFE_MIN ? 1 : 0;      // 곧 식는다는 경고
+        if (fireSnd && st.phase === 'fire') fireSnd.setVolume(FIRE_VOLUME[clamp(st.level, 1, 4) - 1], 0.4);   // (2026-11-26) 온도에 따라 불꽃 소리 크기
         if (st.progress >= 1 && st.phase === 'fire') finish(ctx, 'good');
         st.alpha = INSIDE_ALPHA;
       } else if (st.phase === 'ending') {
@@ -554,6 +566,7 @@
     cancel() { st.drag = false; Work.cancel(); },
 
     exit(ctx) {
+      stopFire(0.3);                                     // (2026-11-26) 혹시 남은 불꽃 소리 (일시정지 → 처음부터 다시 등)
       const result = st.result || 'good';
       ctx.pot_main.fired = result;                       // 이후 화면이 읽을 수 있게
       return { ...ctx.pot_main.toData(), fired: result };
@@ -561,6 +574,7 @@
   });
 
   function onButton(ctx, id) {
+    Sound.play('click');                       // (2026-11-26) 버튼 소리 (「장작 넣기」 버튼은 여기에 장작 소리가 더해진다)
     if (id === 'enter' && st.phase === 'carry') { st.glide = true; st.moved = true; st.drag = false; }
     else if (id === 'wood' && st.phase === 'fire') { const l = Work.bottomLayout(ctx); feed(ctx, ctx.W / 2, l.yBtn); }
     else if (id === 'retry') retry(ctx);
